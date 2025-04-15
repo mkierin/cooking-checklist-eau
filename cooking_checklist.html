@@ -405,13 +405,15 @@
             portionedCell.appendChild(portionedCheckbox);
             row.appendChild(portionedCell);
             
-            // Apply green background if cooked checkbox is checked
-            if (cooked) {
+            // Apply colors based on checkbox states
+            if (cooked && portioned) {
+                // Both checkboxes checked (finished dish) - green background
                 row.classList.add('cooked');
-            }
-            
-            // Apply blue background if portioned checkbox is checked
-            if (portioned) {
+            } else if (cooked) {
+                // Only cooked checkbox checked - green background
+                row.classList.add('cooked');
+            } else if (portioned) {
+                // Only portioned checkbox checked - blue background
                 row.classList.add('portioned');
             }
             
@@ -465,12 +467,14 @@
                     if (columnIndex === 3) {
                         // Check if the first checkbox is also checked
                         if (tableData[rowIndex][2] === true) {
-                            // Both checkboxes are checked, so it goes to the top section
-                            console.log(`Moving ${dishName} to top (cooked section)`);
+                            // Both checkboxes are checked (finished dish), so it goes to the top section (green)
+                            console.log(`Moving ${dishName} to top (finished dish)`);
                             moveRowToTop(rowIndex);
                         } else {
                             // Only the second checkbox is checked, so it goes to the bottom section
                             console.log(`Moving ${dishName} to bottom (portioned-only section)`);
+                            // Make sure the first checkbox is explicitly unchecked
+                            tableData[rowIndex][2] = false;
                             moveRowToBottom(rowIndex);
                         }
                     }
@@ -551,6 +555,22 @@
             rowData[3] = true;  // Mark as portioned (column index 3)
             rowData[2] = false; // Ensure not cooked (column index 2)
             
+            // Debug the row state
+            console.log(`Row state after setting: cooked=${rowData[2]}, portioned=${rowData[3]}`);
+            
+            // Remove the row from its current position and reinsert it
+            // This ensures the row gets properly re-sorted
+            const rowCopy = [...rowData];
+            // Copy over the animation flags
+            rowCopy.isMoving = rowData.isMoving;
+            rowCopy.moveDirection = rowData.moveDirection;
+            
+            // Remove the row
+            tableData.splice(rowIndex, 1);
+            
+            // Add it back to the end (it will be sorted properly by sortTableData)
+            tableData.push(rowCopy);
+            
             // Apply the bucket sorting system to reorganize the table
             sortTableData();
             
@@ -567,8 +587,11 @@
             // Distribute rows into appropriate buckets
             for (let i = 0; i < tableData.length; i++) {
                 const row = tableData[i];
+                const dishName = row[0];
                 const isCooked = row[2] === true;
                 const isPortioned = row[3] === true;
+                
+                console.log(`Sorting ${dishName}: cooked=${isCooked}, portioned=${isPortioned}`);
                 
                 // Create a copy of the row to avoid reference issues
                 const rowCopy = [...row];
@@ -577,14 +600,21 @@
                 if (row.isMoving !== undefined) rowCopy.isMoving = row.isMoving;
                 if (row.moveDirection !== undefined) rowCopy.moveDirection = row.moveDirection;
                 
-                if (isCooked) {
-                    // All cooked rows go to the top bucket (whether portioned or not)
+                if (isCooked && isPortioned) {
+                    // Rows with both checkboxes checked (finished dishes) go to the top bucket
+                    console.log(`${dishName} -> cooked bucket (finished dish)`);
+                    cookedBucket.push(rowCopy);
+                } else if (isCooked) {
+                    // Rows with only the first checkbox checked go to the top bucket
+                    console.log(`${dishName} -> cooked bucket`);
                     cookedBucket.push(rowCopy);
                 } else if (isPortioned) {
-                    // Rows that are portioned but not cooked go to the bottom bucket
+                    // Rows with only the second checkbox checked go to the bottom bucket
+                    console.log(`${dishName} -> portioned-only bucket`);
                     portionedOnlyBucket.push(rowCopy);
                 } else {
                     // Regular rows (neither cooked nor portioned) go to the middle bucket
+                    console.log(`${dishName} -> regular bucket`);
                     regularBucket.push(rowCopy);
                 }
             }

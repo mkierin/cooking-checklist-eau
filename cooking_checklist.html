@@ -423,12 +423,18 @@
             // Get the dish name before updating the data (for logging)
             const dishName = tableData[rowIndex][0];
             console.log(`Checkbox change: ${dishName}, column ${columnIndex}, checked: ${isChecked}`);
-            console.log(`Original position for ${dishName}: ${originalPositions[dishName]}`);
             
             // Handle differently based on whether checking or unchecking
             if (isChecked) {
                 // CHECKING: Update the data first
                 tableData[rowIndex][columnIndex] = isChecked;
+                
+                // If it's the "portioned" checkbox (column index 3), make sure the "cooked" checkbox is also checked
+                if (columnIndex === 3) {
+                    // Force the cooked checkbox to be checked when portioned is checked
+                    tableData[rowIndex][2] = true;
+                    console.log(`Auto-checking cooked checkbox for ${dishName} since portioned is checked`);
+                }
                 
                 // If the first checkbox (cooked) is being checked, enable the second checkbox (portioned)
                 if (columnIndex === 2) {
@@ -450,23 +456,22 @@
                 
                 // Add a delay before moving the row
                 setTimeout(() => {
-                    // If it's the "cooked" checkbox (column index 2)
-                    if (columnIndex === 2) {
-                        console.log(`Moving ${dishName} to top`);
-                        // Move to top
+                    // If it's the "cooked" checkbox (column index 2) and not portioned
+                    if (columnIndex === 2 && !tableData[rowIndex][3]) {
+                        console.log(`Moving ${dishName} to top (cooked section)`);
                         moveRowToTop(rowIndex);
                     }
                     
                     // If it's the "portioned" checkbox (column index 3)
                     if (columnIndex === 3) {
-                        console.log(`Moving ${dishName} to bottom`);
-                        // Move to bottom
-                        moveRowToBottom(rowIndex);
+                        // Both checkboxes are now checked, so it stays in the cooked section
+                        console.log(`Moving ${dishName} to top (cooked section)`);
+                        moveRowToTop(rowIndex);
                     }
                     
                     // Refresh the table again to show the movement
                     initTable();
-                }, 500); // 500ms delay before moving
+                }, 100); // Reduced delay for smoother experience
             } else {
                 // UNCHECKING: Handle special cases
                 
@@ -481,8 +486,8 @@
                     // Update the current checkbox state
                     tableData[rowIndex][columnIndex] = isChecked;
                     
-                    console.log(`Moving ${dishName} back to original position ${originalPositions[dishName]}`);
-                    // Move back to original position immediately
+                    console.log(`Moving ${dishName} back to regular section`);
+                    // Move back to regular section
                     moveRowToOriginalPosition(rowIndex, false); // false = no animation
                 }
                 
@@ -491,14 +496,10 @@
                     // Update the checkbox state
                     tableData[rowIndex][columnIndex] = isChecked;
                     
-                    // If the first checkbox is still checked, move to top instead of original position
+                    // Keep the first checkbox checked
                     if (tableData[rowIndex][2] === true) {
-                        console.log(`Moving ${dishName} to top (below other checked rows)`);
+                        console.log(`Keeping ${dishName} in cooked section (first checkbox still checked)`);
                         moveRowToTop(rowIndex);
-                    } else {
-                        // If first checkbox is not checked, move to original position
-                        console.log(`Moving ${dishName} back to original position ${originalPositions[dishName]}`);
-                        moveRowToOriginalPosition(rowIndex, false);
                     }
                 }
                 
@@ -507,124 +508,107 @@
             }
         }
 
-        // Move a row below other checked rows
+        // Move a row to the top section (cooked rows)
         function moveRowToTop(rowIndex) {
-            // Get the row data
+            // Get the row data and dish name for logging
             const rowData = tableData[rowIndex];
+            const dishName = rowData[0];
+            
+            console.log(`Moving ${dishName} to top section (cooked)`);
             
             // Add animation flags
             rowData.isMoving = true;
             rowData.moveDirection = 'up';
             
-            // Remove the row from its current position
-            tableData.splice(rowIndex, 1);
+            // Mark the row as cooked (column index 2)
+            rowData[2] = true;
             
-            // Sort the table data to ensure proper ordering
+            // Apply the bucket sorting system to reorganize the table
             sortTableData();
             
-            // Find the correct position for this row (which should be in the cooked section)
-            let insertPosition = 0;
-            
-            // Count how many cooked rows we have
-            let cookedCount = 0;
-            for (let i = 0; i < tableData.length; i++) {
-                if (tableData[i][2] === true) { // If the row is cooked
-                    cookedCount++;
-                }
-            }
-            
-            // Insert at the end of the cooked section
-            insertPosition = cookedCount;
-            
-            // Insert the row at the determined position
-            tableData.splice(insertPosition, 0, rowData);
-            
-            console.log(`Moved row to position ${insertPosition} (in cooked section)`);
-            
-            // Re-sort to ensure everything is in the right place
-            sortTableData();
+            console.log(`Moved ${dishName} to cooked section`);
         }
 
-        // Move a row to the bottom of the table (portioned-only section)
+        // Move a row to the bottom section (portioned-only)
         function moveRowToBottom(rowIndex) {
-            // Get the row data
+            // Get the row data and dish name for logging
             const rowData = tableData[rowIndex];
+            const dishName = rowData[0];
+            
+            console.log(`Moving ${dishName} to bottom section (portioned-only)`);
             
             // Add animation flags
             rowData.isMoving = true;
             rowData.moveDirection = 'down';
             
-            // Remove the row from its current position
-            tableData.splice(rowIndex, 1);
+            // Ensure the row is portioned but not cooked
+            rowData[3] = true;  // Mark as portioned (column index 3)
+            rowData[2] = false; // Ensure not cooked (column index 2)
             
-            // Sort the table data to ensure proper ordering
+            // Apply the bucket sorting system to reorganize the table
             sortTableData();
             
-            // Find the position where portioned-only rows begin
-            let insertPosition = tableData.length; // Default to end
+            console.log(`Moved ${dishName} to portioned-only section`);
+        }
+        
+        // Sort the table data using a bucket-based approach
+        function sortTableData() {
+            // Create three separate buckets for different row types
+            const cookedBucket = [];
+            const regularBucket = [];
+            const portionedOnlyBucket = [];
             
+            // Distribute rows into appropriate buckets
             for (let i = 0; i < tableData.length; i++) {
-                // Look for the first portioned-only row
-                if (tableData[i][3] === true && tableData[i][2] === false) {
-                    insertPosition = i;
-                    break;
+                const row = tableData[i];
+                const isCooked = row[2] === true;
+                const isPortioned = row[3] === true;
+                
+                // Create a copy of the row to avoid reference issues
+                const rowCopy = [...row];
+                
+                // Preserve animation flags if present
+                if (row.isMoving !== undefined) rowCopy.isMoving = row.isMoving;
+                if (row.moveDirection !== undefined) rowCopy.moveDirection = row.moveDirection;
+                
+                if (isCooked) {
+                    // All cooked rows go to the top bucket (whether portioned or not)
+                    cookedBucket.push(rowCopy);
+                } else if (isPortioned) {
+                    // Rows that are portioned but not cooked go to the bottom bucket
+                    portionedOnlyBucket.push(rowCopy);
+                } else {
+                    // Regular rows (neither cooked nor portioned) go to the middle bucket
+                    regularBucket.push(rowCopy);
                 }
             }
             
-            // Insert the row at the determined position
-            tableData.splice(insertPosition, 0, rowData);
+            // Sort each bucket alphabetically by dish name
+            cookedBucket.sort((a, b) => a[0].localeCompare(b[0]));
+            regularBucket.sort((a, b) => a[0].localeCompare(b[0]));
+            portionedOnlyBucket.sort((a, b) => a[0].localeCompare(b[0]));
             
-            console.log(`Moved row to position ${insertPosition} (in portioned-only section)`);
+            // Clear the table data array
+            tableData.length = 0;
             
-            // Re-sort to ensure everything is in the right place
-            sortTableData();
-        }
-        
-        // Sort the table data to ensure proper ordering
-        function sortTableData() {
-            // Sort the data into three sections:
-            // 1. Cooked items (green) at the top
-            // 2. Regular items in the middle (alphabetically sorted)
-            // 3. Portioned-only items (blue) at the bottom
-            tableData.sort((a, b) => {
-                const aCooked = a[2] === true;
-                const bCooked = b[2] === true;
-                const aPortionedOnly = a[3] === true && a[2] === false;
-                const bPortionedOnly = b[3] === true && b[2] === false;
-                
-                // If one is cooked and the other isn't, cooked goes first
-                if (aCooked && !bCooked) return -1;
-                if (!aCooked && bCooked) return 1;
-                
-                // If both are cooked or both are not cooked, check for portioned-only
-                if (!aCooked && !bCooked) {
-                    // If one is portioned-only and the other isn't, portioned-only goes last
-                    if (aPortionedOnly && !bPortionedOnly) return 1;
-                    if (!aPortionedOnly && bPortionedOnly) return -1;
-                    
-                    // If neither is special, sort alphabetically
-                    if (!aPortionedOnly && !bPortionedOnly) {
-                        return a[0].localeCompare(b[0]);
-                    }
-                }
-                
-                // For items in the same category, preserve their relative order
-                return 0;
-            });
+            // Combine the buckets in the desired order
+            cookedBucket.forEach(row => tableData.push(row));
+            regularBucket.forEach(row => tableData.push(row));
+            portionedOnlyBucket.forEach(row => tableData.push(row));
+            
+            // Log the bucket sizes for debugging
+            console.log(`Bucket sizes - Cooked: ${cookedBucket.length}, Regular: ${regularBucket.length}, Portioned-only: ${portionedOnlyBucket.length}`);
         }
 
-        // Move a row back to its original position
+        // Move a row back to its original position (regular section)
         function moveRowToOriginalPosition(rowIndex, animate = true) {
             // Get the row data
             const rowData = tableData[rowIndex];
             
-            // Get the dish name to look up the original position
+            // Get the dish name for logging
             const dishName = rowData[0];
             
-            // Get the original position from our mapping
-            const originalIndex = originalPositions[dishName];
-            
-            console.log(`Moving row ${rowIndex} (${dishName}) back to original position ${originalIndex}`);
+            console.log(`Moving ${dishName} back to regular section (unchecked)`);
             
             // Add animation flags only if animation is requested
             if (animate) {
@@ -636,16 +620,14 @@
                 rowData.moveDirection = null;
             }
             
-            // Remove the row from its current position
-            tableData.splice(rowIndex, 1);
+            // Reset the row's state to unchecked for both checkboxes
+            rowData[2] = false; // Uncheck cooked
+            rowData[3] = false; // Uncheck portioned
             
-            // Make sure we don't insert beyond the array bounds
-            const insertPosition = Math.min(originalIndex, tableData.length);
+            // Apply the bucket sorting system to reorganize the table
+            sortTableData();
             
-            // Insert it at the original position
-            tableData.splice(insertPosition, 0, rowData);
-            
-            console.log(`Moved row back to position ${insertPosition}`);
+            console.log(`Moved ${dishName} to regular section`);
         }
 
         // Remove duplicate dishes

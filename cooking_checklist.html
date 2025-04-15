@@ -137,255 +137,20 @@
     </div>
 
     <script>
-        // Constants for state management
-        const STATE = {
-            UNCHECKED: 0,
-            COOKED: 1,
-            PORTIONED: 2,
-            BOTH: 3
-        };
-        
-        const CHECKBOX = {
-            COOKED: 2,  // Index in tableData row
-            PORTIONED: 3 // Index in tableData row
-        };
-        
-        // State Manager class
-        class StateManager {
-            constructor() {
-                this.stateChangeListeners = [];
-            }
-            
-            // Get the current state of a row
-            getRowState(rowData) {
-                const isCooked = rowData[CHECKBOX.COOKED] === true;
-                const isPortioned = rowData[CHECKBOX.PORTIONED] === true;
-                
-                if (isCooked && isPortioned) return STATE.BOTH;
-                if (isCooked) return STATE.COOKED;
-                if (isPortioned) return STATE.PORTIONED;
-                return STATE.UNCHECKED;
-            }
-            
-            // Update a row's state
-            updateRowState(rowIndex, newState) {
-                // Get current row data
-                const rowData = tableData[rowIndex];
-                if (!rowData) {
-                    console.error(`Row ${rowIndex} not found`);
-                    return false;
-                }
-                
-                // Update checkboxes based on the new state
-                switch(newState) {
-                    case STATE.UNCHECKED:
-                        rowData[CHECKBOX.COOKED] = false;
-                        rowData[CHECKBOX.PORTIONED] = false;
-                        break;
-                    case STATE.COOKED:
-                        rowData[CHECKBOX.COOKED] = true;
-                        rowData[CHECKBOX.PORTIONED] = false;
-                        break;
-                    case STATE.PORTIONED:
-                        rowData[CHECKBOX.COOKED] = false;
-                        rowData[CHECKBOX.PORTIONED] = true;
-                        break;
-                    case STATE.BOTH:
-                        rowData[CHECKBOX.COOKED] = true;
-                        rowData[CHECKBOX.PORTIONED] = true;
-                        break;
-                    default:
-                        console.error(`Invalid state: ${newState}`);
-                        return false;
-                }
-                
-                // Notify listeners of state change
-                this.notifyStateChange(rowIndex, newState);
-                return true;
-            }
-            
-            // Update state based on checkbox change
-            handleCheckboxChange(rowIndex, checkboxIndex, isChecked) {
-                const rowData = tableData[rowIndex];
-                if (!rowData) {
-                    console.error(`Row ${rowIndex} not found`);
-                    return false;
-                }
-                
-                // Get current state
-                const currentState = this.getRowState(rowData);
-                let newState;
-                
-                // Determine new state based on which checkbox changed
-                if (checkboxIndex === CHECKBOX.COOKED) {
-                    if (isChecked) {
-                        newState = currentState === STATE.PORTIONED ? STATE.BOTH : STATE.COOKED;
-                    } else {
-                        newState = currentState === STATE.BOTH ? STATE.PORTIONED : STATE.UNCHECKED;
-                    }
-                } else if (checkboxIndex === CHECKBOX.PORTIONED) {
-                    if (isChecked) {
-                        newState = currentState === STATE.COOKED ? STATE.BOTH : STATE.PORTIONED;
-                    } else {
-                        newState = currentState === STATE.BOTH ? STATE.COOKED : STATE.UNCHECKED;
-                    }
-                } else {
-                    console.error(`Invalid checkbox index: ${checkboxIndex}`);
-                    return false;
-                }
-                
-                // Update to new state
-                return this.updateRowState(rowIndex, newState);
-            }
-            
-            // Add a state change listener
-            addStateChangeListener(listener) {
-                if (typeof listener === 'function') {
-                    this.stateChangeListeners.push(listener);
-                }
-            }
-            
-            // Notify all listeners of a state change
-            notifyStateChange(rowIndex, newState) {
-                for (const listener of this.stateChangeListeners) {
-                    listener(rowIndex, newState);
-                }
-            }
-        }
-        
-        // Create global state manager
-        const stateManager = new StateManager();
-        
-        // Position Manager class to handle row positioning
-        class PositionManager {
-            constructor() {
-                // Register as a state change listener
-                stateManager.addStateChangeListener(this.handleStateChange.bind(this));
-            }
-            
-            // Handle state changes
-            handleStateChange(rowIndex, newState) {
-                console.log(`State changed for row ${rowIndex} to ${newState}`);
-                
-                // Determine the new position based on state
-                switch(newState) {
-                    case STATE.UNCHECKED:
-                        this.moveToOriginalPosition(rowIndex);
-                        break;
-                    case STATE.COOKED:
-                        this.moveToTop(rowIndex);
-                        break;
-                    case STATE.PORTIONED:
-                        this.moveToOriginalPosition(rowIndex);
-                        break;
-                    case STATE.BOTH:
-                        this.moveToBottom(rowIndex);
-                        break;
-                }
-                
-                // Refresh the table to show the changes
-                initTable();
-            }
-            
-            // Move a row to the top (below other cooked rows)
-            moveToTop(rowIndex) {
-                // Get the row data
-                const rowData = tableData[rowIndex];
-                if (!rowData) return;
-                
-                // Add animation flags
-                rowData.isMoving = true;
-                rowData.moveDirection = 'up';
-                
-                // Remove the row from its current position
-                tableData.splice(rowIndex, 1);
-                
-                // Find the position of the last cooked row
-                let insertPosition = 0; // Default to top position
-                
-                // Loop through the data to find the last cooked row
-                for (let i = 0; i < tableData.length; i++) {
-                    if (stateManager.getRowState(tableData[i]) === STATE.COOKED) {
-                        insertPosition = i + 1; // Insert after this row
-                    }
-                }
-                
-                // Insert the row at the determined position
-                tableData.splice(insertPosition, 0, rowData);
-                
-                console.log(`Moved row to position ${insertPosition} (below other cooked rows)`);
-            }
-            
-            // Move a row to the bottom of the table
-            moveToBottom(rowIndex) {
-                // Get the row data
-                const rowData = tableData[rowIndex];
-                if (!rowData) return;
-                
-                // Add animation flags
-                rowData.isMoving = true;
-                rowData.moveDirection = 'down';
-                
-                // Remove the row from its current position
-                tableData.splice(rowIndex, 1);
-                
-                // Add it to the end of the array
-                tableData.push(rowData);
-                
-                console.log(`Moved row to bottom`);
-            }
-            
-            // Move a row back to its original position
-            moveToOriginalPosition(rowIndex, animate = true) {
-                // Get the row data
-                const rowData = tableData[rowIndex];
-                if (!rowData) return;
-                
-                // Get the dish name to look up the original position
-                const dishName = rowData[0];
-                
-                // Get the original position from our mapping
-                const originalIndex = originalPositions[dishName];
-                
-                console.log(`Moving row ${rowIndex} (${dishName}) back to original position ${originalIndex}`);
-                
-                // Add animation flags only if animation is requested
-                if (animate) {
-                    rowData.isMoving = true;
-                    rowData.moveDirection = 'down';
-                } else {
-                    // Make sure no animation happens
-                    rowData.isMoving = false;
-                    rowData.moveDirection = null;
-                }
-                
-                // Remove the row from its current position
-                tableData.splice(rowIndex, 1);
-                
-                // Make sure we don't insert beyond the array bounds
-                const insertPosition = Math.min(originalIndex, tableData.length);
-                
-                // Insert it at the original position
-                tableData.splice(insertPosition, 0, rowData);
-                
-                console.log(`Moved row back to position ${insertPosition}`);
-            }
-        }
-        
-        // Create global position manager
-        const positionManager = new PositionManager();
-        
         // Function to fetch and parse CSV data from Google Sheets
         function fetchDataFromGoogleSheets() {
-            // Original CSV URL
-            const originalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQM10ZHnytdBTAM5dR4ZU0koZA99GDoeXh-I8LnvFHx6dgzVBpuupAuWvOElWoarHYt3LrQVG5r9L3L/pub?gid=1548051930&single=true&output=csv';
+            // Original CSV URL from Google Sheets
+            const originalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSlkqs1NPRzcnn5pL0idFo0u58eDZSExJarqh2NqQexmhSMLYmyahISVleD04TULNebkNoi92XFDVvM/pub?gid=1548051930&single=true&output=csv';
             
-            // Try a different CORS proxy
-            const corsProxyUrl = 'https://api.allorigins.win/raw?url=';
-            const csvUrl = corsProxyUrl + encodeURIComponent(originalCsvUrl);
+            // Use a CORS proxy to handle cross-origin requests
+            const corsProxyUrl = 'https://corsproxy.io/?';
+            
+            // Add cache busting parameter to always fetch fresh data
+            const csvUrl = corsProxyUrl + encodeURIComponent(originalCsvUrl + '&cachebust=' + Date.now());
             
             console.log('Fetching data from:', csvUrl);
             
+            // Primary fetch attempt using CORS proxy
             fetch(csvUrl)
                 .then(response => {
                     if (!response.ok) {
@@ -400,7 +165,7 @@
                     console.error('Error fetching or parsing CSV:', error);
                     console.log('Trying direct fetch as fallback...');
                     
-                    // As a fallback, try direct fetch (works in some environments)
+                    // Fallback: try direct fetch (works in some environments)
                     fetch(originalCsvUrl, { mode: 'no-cors' })
                         .then(response => {
                             if (response.type === 'opaque') {
@@ -411,7 +176,6 @@
                             return response.text();
                         })
                         .then(csvText => {
-                            // Process CSV text as before
                             console.log('Direct fetch succeeded!');
                             processCsvData(csvText);
                         })
@@ -466,13 +230,17 @@
                 if (isNaN(parseInt(values[1])) && i === 0) continue;
                 if (!values[0]) continue; // Skip rows without a dish name
                 
+                // Parse portions value
+                const portions = parseInt(values[1] || '0', 10);
+                if (portions === 0) continue; // Skip rows with 0 portions
+                
                 // Create row in the format: [name, portions, checked1, checked2, url]
                 parsedData.push([
                     values[0].trim(),                // Name
-                    parseInt(values[1] || '0', 10), // Portions
+                    portions,                        // Portions
                     false,                          // First checkbox (always start unchecked)
                     false,                          // Second checkbox (always start unchecked)
-                    values[2] || '#'                // URL (or default to '#')
+                    values[6] || '#'                // URL from column G (Google Docs link) or default to '#'
                 ]);
             }
             

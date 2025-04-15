@@ -310,8 +310,12 @@
             // Make sure position tracking is initialized
             initializePositionTracking();
             
+            // Sort the table data to ensure consistent ordering
+            sortTableData();
+            
             console.log('Current original positions:', originalPositions);
 
+            // Render the sorted table data
             tableData.forEach((rowData, index) => {
                 // Create row
                 const row = createTableRow(rowData, index);
@@ -515,23 +519,33 @@
             // Remove the row from its current position
             tableData.splice(rowIndex, 1);
             
-            // Find the position of the last checked row
-            let insertPosition = 0; // Default to top position
+            // Sort the table data to ensure proper ordering
+            sortTableData();
             
-            // Loop through the data to find the last checked row
+            // Find the correct position for this row (which should be in the cooked section)
+            let insertPosition = 0;
+            
+            // Count how many cooked rows we have
+            let cookedCount = 0;
             for (let i = 0; i < tableData.length; i++) {
-                if (tableData[i][2] === true) { // If the row is checked (column 3)
-                    insertPosition = i + 1; // Insert after this row
+                if (tableData[i][2] === true) { // If the row is cooked
+                    cookedCount++;
                 }
             }
+            
+            // Insert at the end of the cooked section
+            insertPosition = cookedCount;
             
             // Insert the row at the determined position
             tableData.splice(insertPosition, 0, rowData);
             
-            console.log(`Moved row to position ${insertPosition} (below other checked rows)`);
+            console.log(`Moved row to position ${insertPosition} (in cooked section)`);
+            
+            // Re-sort to ensure everything is in the right place
+            sortTableData();
         }
 
-        // Move a row to the bottom of the table
+        // Move a row to the bottom of the table (portioned-only section)
         function moveRowToBottom(rowIndex) {
             // Get the row data
             const rowData = tableData[rowIndex];
@@ -543,8 +557,60 @@
             // Remove the row from its current position
             tableData.splice(rowIndex, 1);
             
-            // Add it to the end of the array
-            tableData.push(rowData);
+            // Sort the table data to ensure proper ordering
+            sortTableData();
+            
+            // Find the position where portioned-only rows begin
+            let insertPosition = tableData.length; // Default to end
+            
+            for (let i = 0; i < tableData.length; i++) {
+                // Look for the first portioned-only row
+                if (tableData[i][3] === true && tableData[i][2] === false) {
+                    insertPosition = i;
+                    break;
+                }
+            }
+            
+            // Insert the row at the determined position
+            tableData.splice(insertPosition, 0, rowData);
+            
+            console.log(`Moved row to position ${insertPosition} (in portioned-only section)`);
+            
+            // Re-sort to ensure everything is in the right place
+            sortTableData();
+        }
+        
+        // Sort the table data to ensure proper ordering
+        function sortTableData() {
+            // Sort the data into three sections:
+            // 1. Cooked items (green) at the top
+            // 2. Regular items in the middle (alphabetically sorted)
+            // 3. Portioned-only items (blue) at the bottom
+            tableData.sort((a, b) => {
+                const aCooked = a[2] === true;
+                const bCooked = b[2] === true;
+                const aPortionedOnly = a[3] === true && a[2] === false;
+                const bPortionedOnly = b[3] === true && b[2] === false;
+                
+                // If one is cooked and the other isn't, cooked goes first
+                if (aCooked && !bCooked) return -1;
+                if (!aCooked && bCooked) return 1;
+                
+                // If both are cooked or both are not cooked, check for portioned-only
+                if (!aCooked && !bCooked) {
+                    // If one is portioned-only and the other isn't, portioned-only goes last
+                    if (aPortionedOnly && !bPortionedOnly) return 1;
+                    if (!aPortionedOnly && bPortionedOnly) return -1;
+                    
+                    // If neither is special, sort alphabetically
+                    if (!aPortionedOnly && !bPortionedOnly) {
+                        return a[0].localeCompare(b[0]);
+                    }
+                }
+                
+                // For items in the same category, preserve their relative order
+                return 0;
+            });
         }
 
         // Move a row back to its original position

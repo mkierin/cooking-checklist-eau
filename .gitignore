@@ -1,0 +1,25 @@
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+
+# Node.js dependencies (if you use them in the future)
+node_modules/
+npm-debug.log
+
+# Logs
+*.log
+
+# IDE specific files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace

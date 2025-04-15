@@ -1,0 +1,36 @@
+Checklist Formulas Guide for Eatunique Kitchen Production
+==============================================
+
+This guide outlines the structure for converting the Google Apps Script functionality into Google Sheets formulas with helper columns. The goal is to replicate the status tracking and formatting of the `Checkliste Kochen.gs` and `SimpleSort.gs` scripts, ensuring transparency and reliability.
+
+Sheet Name: [Checkliste] Kochen & Portionieren
+--------------------------------------------
+
+Core Columns (Original Data):
+- Column A: Dish Name (with potential hyperlinks)
+- Column B: Portions (number of portions)
+- Column C: Cooking Checkbox (TRUE/FALSE)
+- Column D: Portioning Checkbox (TRUE/FALSE)
+- Column E: Additional Data (if any)
+
+Helper Columns (for Status Tracking):
+These will be added starting from Column F to keep the original data intact.
+- Column F: Portioning Status (Formula: =IF(D2, 1, 0))
+  - 1 if portioned, 0 if not. Used for status tracking.
+- Column G: Cooking Status (Formula: =IF(C2, 1, 0))
+  - 1 if cooked, 0 if not. Used for status tracking.
+- Column H: Portions Check (Formula: =IF(B2=0, 1, 0))
+  - 1 if portions are 0, 0 if greater than 0. Used for status tracking.
+
+Conditional Formatting Rules:
+Apply these to range A2:E1000 (or as needed) to visually replicate script formatting.
+1. Portioning Complete (Blue): Formula =D2, Color #9fc5e8 (Light Blue)
+2. Cooking Complete (Green): Formula =C2, Color #b6d7a8 (Light Green)
+3. Zero Portions (Gray): Formula =B2=0, Color #eeeeee (Light Gray)
+
+Notes for Implementation:
+- **Range Adjustments**: Adjust the range references (e.g., A2:E1000) based on your actual data size.
+- **Performance**: If the sheet is very large, consider limiting the range of formulas to improve performance.
+- **Validation**: Check each helper column against a few rows to ensure the logic matches expectations (e.g., portioned items are correctly flagged).
+
+This setup ensures each step of the status tracking logic is visible and can be debugged through the helper columns, replacing the script’s dynamic behavior with static, formula-driven calculations.

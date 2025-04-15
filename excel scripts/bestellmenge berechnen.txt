@@ -1,0 +1,185 @@
+/**
+ * Berechnet die benötigte Zutatenmenge basierend auf Kundenbestellungen und Rezepten
+ * Zusätzlich werden alternative Bezeichnungen und ihre jeweiligen Mengen erfasst (bis zu 20)
+ */
+function berechneZutatenmengen() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  
+  // Zugriff auf die relevanten Sheets
+  const kundenbestellungenSheet = ss.getSheetByName("Kundenbestellungen");
+  const rezeptedatenbankSheet = ss.getSheetByName("Rezeptedatenbank");
+  const bestelltoolSheet = ss.getSheetByName("Bestelltool");
+  
+  // Daten aus den Sheets laden
+  const kundenbestellungenData = kundenbestellungenSheet.getDataRange().getValues();
+  const rezeptedatenbankData = rezeptedatenbankSheet.getDataRange().getValues();
+  const bestelltoolData = bestelltoolSheet.getDataRange().getValues();
+  
+  // Sicherstellen, dass die Spaltenüberschriften für alternative Bezeichnungen vorhanden sind
+  ensureAlternativeColumns(bestelltoolSheet);
+  
+  // Indizes ermitteln
+  // Kundenbestellungen: Standardisierte Namen in Spalte C (Index 2), Bestellmenge in Spalte B (Index 1)
+  // Rezeptedatenbank: Standardisierte Gerichtnamen in Spalte B (Index 1), Zutaten in Spalte C (Index 2), 
+  //                   Standardisierte Zutatennamen in Spalte D (Index 3), Mengen in Spalte E (Index 4),
+  //                   Alternative Bezeichnungen in Spalte S (Index 18)
+  // Bestelltool: Zutatennamen in Spalte A (Index 0), Standardisierte Namen in Spalte C (Index 2)
+  
+  // Extrahiere relevante Daten aus Kundenbestellungen (überspringe Header-Zeile)
+  const bestellungen = {};
+  for (let i = 1; i < kundenbestellungenData.length; i++) {
+    const standardName = kundenbestellungenData[i][2]; // Spalte C (Index 2)
+    const menge = kundenbestellungenData[i][1];       // Spalte B (Index 1)
+    
+    if (standardName && menge) {
+      bestellungen[standardName] = menge;
+    }
+  }
+  
+  // Zuordnung von standardisierten Zutatennamen zu ihren Gesamtmengen erstellen
+  const zutatenMengen = {};
+  
+  // Zuordnung für alternative Bezeichnungen erstellen
+  // Format: { zutatStandardName: { altBezeichnung1: menge1, altBezeichnung2: menge2, ... } }
+  const alternativeMengen = {};
+  
+  // Mapping von Standardnamen zu alternativen Bezeichnungen aus der Rezeptedatenbank
+  const alternativeBezeichnungen = {};
+  for (let i = 1; i < rezeptedatenbankData.length; i++) {
+    const zutat = rezeptedatenbankData[i][2]; // Spalte C (Index 2)
+    const standardName = rezeptedatenbankData[i][3]; // Spalte D (Index 3)
+    const altBezeichnung = rezeptedatenbankData[i][18]; // Spalte S (Index 18)
+    
+    if (zutat && standardName && altBezeichnung) {
+      if (!alternativeBezeichnungen[standardName]) {
+        alternativeBezeichnungen[standardName] = {};
+      }
+      alternativeBezeichnungen[standardName][zutat] = altBezeichnung;
+    }
+  }
+  
+  // Durch alle Rezepte in der Rezeptedatenbank gehen
+  let currentGericht = '';
+  let currentGerichtId = '';
+  
+  for (let i = 1; i < rezeptedatenbankData.length; i++) {
+    const row = rezeptedatenbankData[i];
+    const gerichtStandardName = row[1]; // Spalte B (Index 1)
+    const gerichtId = row[0]; // Spalte A (Index 0)
+    
+    // Wenn es sich um einen neuen Gerichtnamen handelt (nicht leer), aktualisiere den aktuellen Gerichtnamen
+    if (gerichtStandardName && gerichtStandardName.trim() !== '') {
+      currentGericht = gerichtStandardName;
+      if (gerichtId && gerichtId.trim() !== '') {
+        currentGerichtId = gerichtId;
+      }
+    }
+    
+    // Überprüfe, ob das aktuelle Gericht bestellt wurde
+    if (currentGericht in bestellungen) {
+      const zutat = row[2]; // Originalzutat in Spalte C (Index 2)
+      const zutatStandardName = row[3]; // Spalte D (Index 3)
+      const zutatMenge = row[4];       // Spalte E (Index 4)
+      const altBezeichnung = row[18];  // Spalte S (Index 18)
+      
+      // Überspringe "Gesamtgewicht" Zeilen und leere Zeilen
+      if (zutatStandardName && zutatStandardName !== 'gesamtgewicht' && zutatStandardName.trim() !== '') {
+        // Berechne die benötigte Menge dieser Zutat für dieses Gericht
+        const bestellMenge = bestellungen[currentGericht];
+        const benötigteMenge = bestellMenge * zutatMenge;
+        
+        // Addiere zur Gesamtmenge dieser Zutat
+        if (zutatStandardName in zutatenMengen) {
+          zutatenMengen[zutatStandardName] += benötigteMenge;
+        } else {
+          zutatenMengen[zutatStandardName] = benötigteMenge;
+        }
+        
+        // Wenn eine alternative Bezeichnung vorhanden ist, erfasse diese separat
+        if (altBezeichnung && altBezeichnung.trim() !== '') {
+          if (!alternativeMengen[zutatStandardName]) {
+            alternativeMengen[zutatStandardName] = {};
+          }
+          
+          if (!alternativeMengen[zutatStandardName][altBezeichnung]) {
+            alternativeMengen[zutatStandardName][altBezeichnung] = 0;
+          }
+          
+          alternativeMengen[zutatStandardName][altBezeichnung] += benötigteMenge;
+        }
+      }
+    }
+  }
+  
+  // Ergebnisse für Standardmengen ins Bestelltool-Sheet schreiben
+  const ergebnisse = [];
+  for (let i = 1; i < bestelltoolData.length; i++) {
+    const zutatStandardName = bestelltoolData[i][2]; // Spalte C (Index 2)
+    
+    if (zutatStandardName) {
+      const menge = zutatStandardName in zutatenMengen ? zutatenMengen[zutatStandardName] : 0;
+      ergebnisse.push([menge]); // Nur die Menge in Spalte B schreiben
+    } else {
+      ergebnisse.push([0]); // 0 für leere Zeilen
+    }
+  }
+  
+  // Ergebnisse in Spalte B schreiben (beginnt bei B2)
+  if (ergebnisse.length > 0) {
+    bestelltoolSheet.getRange(2, 2, ergebnisse.length, 1).setValues(ergebnisse);
+  }
+  
+  // Alternative Bezeichnungen und ihre Mengen ins Bestelltool schreiben
+  for (let i = 1; i < bestelltoolData.length; i++) {
+    const zutatStandardName = bestelltoolData[i][2]; // Spalte C (Index 2)
+    
+    if (zutatStandardName && alternativeMengen[zutatStandardName]) {
+      const alternatives = alternativeMengen[zutatStandardName];
+      let altIndex = 0;
+      
+      for (const altName in alternatives) {
+        // Schreibe bis zu 20 alternative Bezeichnungen
+        if (altIndex < 20) {
+          const nameCol = 4 + (altIndex * 2); // D=4, F=6, H=8, usw.
+          const mengeCol = 5 + (altIndex * 2); // E=5, G=7, I=9, usw.
+          
+          bestelltoolSheet.getRange(i+1, nameCol).setValue(altName);
+          bestelltoolSheet.getRange(i+1, mengeCol).setValue(alternatives[altName]);
+          
+          altIndex++;
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Stellt sicher, dass die Spaltenüberschriften für alternative Bezeichnungen vorhanden sind (bis zu 20)
+ */
+function ensureAlternativeColumns(sheet) {
+  // Überprüfe, ob die Überschriften für alternative Bezeichnungen existieren
+  const headerRow = sheet.getRange(1, 1, 1, 43).getValues()[0]; // Bis zu 20 Alternativen (Spalte D bis Spalte AQ)
+  
+  let needsUpdate = false;
+  
+  // Erstelle 20 alternative Bezeichnungsspalten (Spalte D-AQ)
+  for (let i = 0; i < 20; i++) {
+    const bezeichnungCol = 4 + (i * 2); // D=4, F=6, H=8, usw.
+    const mengeCol = 5 + (i * 2); // E=5, G=7, I=9, usw.
+    
+    if (headerRow[bezeichnungCol-1] !== `Alternative Bezeichnung ${i+1}`) {
+      sheet.getRange(1, bezeichnungCol).setValue(`Alternative Bezeichnung ${i+1}`);
+      needsUpdate = true;
+    }
+    
+    if (headerRow[mengeCol-1] !== `Menge ${i+1} in g`) {
+      sheet.getRange(1, mengeCol).setValue(`Menge ${i+1} in g`);
+      needsUpdate = true;
+    }
+  }
+  
+  if (needsUpdate) {
+    // Formatierung der Überschriften
+    sheet.getRange(1, 4, 1, 40).setFontWeight("bold");
+  }
+}

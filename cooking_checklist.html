@@ -387,6 +387,14 @@
             const portionedCheckbox = document.createElement('input');
             portionedCheckbox.type = 'checkbox';
             portionedCheckbox.checked = portioned;
+            
+            // Disable the portioned checkbox if cooked is not checked
+            if (!cooked) {
+                portionedCheckbox.disabled = true;
+                portionedCheckbox.style.opacity = '0.5';
+                portionedCheckbox.style.cursor = 'not-allowed';
+            }
+            
             portionedCheckbox.addEventListener('change', function() {
                 handleCheckboxChange(index, 3, this.checked);
             });
@@ -417,6 +425,21 @@
             if (isChecked) {
                 // CHECKING: Update the data first
                 tableData[rowIndex][columnIndex] = isChecked;
+                
+                // If the first checkbox (cooked) is being checked, enable the second checkbox (portioned)
+                if (columnIndex === 2) {
+                    // Find the row in the table and enable the portioned checkbox
+                    const tableBody = document.getElementById('table-body');
+                    const row = tableBody.children[rowIndex];
+                    if (row) {
+                        const portionedCheckbox = row.querySelector('td:nth-child(5) input');
+                        if (portionedCheckbox) {
+                            portionedCheckbox.disabled = false;
+                            portionedCheckbox.style.opacity = '1';
+                            portionedCheckbox.style.cursor = 'pointer';
+                        }
+                    }
+                }
                 
                 // Show checkbox state and color change immediately
                 initTable();

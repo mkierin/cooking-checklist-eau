@@ -429,11 +429,10 @@
                 // CHECKING: Update the data first
                 tableData[rowIndex][columnIndex] = isChecked;
                 
-                // If it's the "portioned" checkbox (column index 3), make sure the "cooked" checkbox is also checked
+                // If it's the "portioned" checkbox (column index 3), we don't auto-check the first one
+                // This allows portioned-only rows to go to the bottom bucket
                 if (columnIndex === 3) {
-                    // Force the cooked checkbox to be checked when portioned is checked
-                    tableData[rowIndex][2] = true;
-                    console.log(`Auto-checking cooked checkbox for ${dishName} since portioned is checked`);
+                    console.log(`Portioned checkbox checked for ${dishName}`);
                 }
                 
                 // If the first checkbox (cooked) is being checked, enable the second checkbox (portioned)
@@ -464,9 +463,16 @@
                     
                     // If it's the "portioned" checkbox (column index 3)
                     if (columnIndex === 3) {
-                        // Both checkboxes are now checked, so it stays in the cooked section
-                        console.log(`Moving ${dishName} to top (cooked section)`);
-                        moveRowToTop(rowIndex);
+                        // Check if the first checkbox is also checked
+                        if (tableData[rowIndex][2] === true) {
+                            // Both checkboxes are checked, so it goes to the top section
+                            console.log(`Moving ${dishName} to top (cooked section)`);
+                            moveRowToTop(rowIndex);
+                        } else {
+                            // Only the second checkbox is checked, so it goes to the bottom section
+                            console.log(`Moving ${dishName} to bottom (portioned-only section)`);
+                            moveRowToBottom(rowIndex);
+                        }
                     }
                     
                     // Refresh the table again to show the movement

@@ -294,7 +294,7 @@
             document.getElementById('loading-indicator').classList.remove('hidden');
             
             // Original CSV URL from Google Sheets
-            const originalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSlkqs1NPRzcnn5pL0idFo0u58eDZSExJarqh2NqQexmhSMLYmyahISVleD04TULNebkNoi92XFDVvM/pub?gid=1548051930&single=true&output=csv';
+            const originalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQZII39uud-UKyyEopoSR5mp4fWfOF1nJy8noZSyt7sbIaXlBntRi5gQlnWOIMmJGg4rSp--KsCrKqN/pub?gid=1548051930&single=true&output=csv';
             
             // Use a CORS proxy to handle cross-origin requests
             const corsProxyUrl = 'https://corsproxy.io/?';
@@ -339,32 +339,13 @@
                         })
                         .catch(directError => {
                             console.error('Direct fetch also failed:', directError);
-                            console.log('Falling back to default empty data');
-                            // Use sample data if all fetches fail
-                            useSampleData();
-                            // Hide loading indicator when using sample data
                             document.getElementById('loading-indicator').classList.add('hidden');
+                            alert('Fehler: CSV konnte nicht geladen werden. Bitte prüfen Sie den Link und die Erreichbarkeit der Datei.');
                         });
                 });
         }
         
-        // Function to use sample data for testing
-        function useSampleData() {
-            const sampleData = [
-                ["Gemüserösti", 115, false, false, "https://docs.google.com/document/d/sample1"],
-                ["Bärlauchkalbshackbraten", 132, false, false, "https://docs.google.com/document/d/sample2"],
-                ["Gemüsesuppe", 42, false, false, "https://docs.google.com/document/d/sample4"],
-                ["Hackbällchen mit Tomatensoße", 20, false, false, "https://docs.google.com/document/d/sample5"],
-                ["Hackbraten an Jus", 83, false, false, "https://docs.google.com/document/d/sample6"]
-            ];
-            
-            // Clear the tableData array and add sample data
-            tableData.length = 0;
-            sampleData.forEach(row => tableData.push(row));
-            
-            // Initialize the table with sample data
-            initTable();
-        }
+
         
         /**
          * Helper function to properly parse CSV rows (handles quoted values)
@@ -425,7 +406,7 @@
                     portions,                        // Portions
                     false,                          // First checkbox (always start unchecked)
                     false,                          // Second checkbox (always start unchecked)
-                    values[6] || '#'                // URL from column G (Google Docs link) or default to '#'
+                    values[6] || '#'                // PDF Hyperlink from column G
                 ]);
             }
             
@@ -487,13 +468,12 @@
             const dishCell = document.createElement('td');
             if (dish) {
                 const dishLink = document.createElement('a');
-                // TEST MODE: All dish links use the PDF preview link
-                dishLink.href = 'https://drive.google.com/file/d/190N_DFz7tF8qNlBd3_ezAw_f7HgKo_wL/preview'; // revert to rowData[4] for production
+                dishLink.href = rowData[4] || '#';
                 dishLink.textContent = dish;
                 dishLink.className = 'dish-link';
                 dishLink.addEventListener('click', function(e) {
                     e.preventDefault();
-                    openDocsPopup('https://drive.google.com/file/d/190N_DFz7tF8qNlBd3_ezAw_f7HgKo_wL/preview', dish);
+                    openDocsPopup(rowData[4] || '#', dish);
                 });
                 dishCell.appendChild(dishLink);
             }
@@ -632,12 +612,10 @@
         }
         // Google Docs Popup logic
         function openDocsPopup(url, dishName) {
-            // TEST MODE: Always show the same PDF from Google Drive for all dishes
             const popup = document.getElementById('docs-popup');
             const iframe = document.getElementById('docs-popup-iframe');
             const title = document.getElementById('docs-popup-title');
-            // Use the working PDF preview link (update to dynamic later)
-            iframe.src = "https://drive.google.com/file/d/190N_DFz7tF8qNlBd3_ezAw_f7HgKo_wL/preview";
+            iframe.src = url || '#';
             title.textContent = dishName || 'Rezeptvorschau';
             popup.style.display = 'flex';
         }

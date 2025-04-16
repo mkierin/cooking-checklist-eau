@@ -9,136 +9,192 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 20px;
+            background-color: #f5f5f5;
         }
-        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .bucket-header {
+            padding: 12px 15px;
+            font-weight: bold;
+            color: white;
+            font-size: 18px;
+        }
+        .bucket1-header {
+            background-color: #4CAF50;
+        }
+        .bucket2-header {
+            background-color: #9E9E9E;
+            margin-top: 20px;
+        }
+        .bucket3-header {
+            background-color: #673AB7;
+            margin-top: 20px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
-        }
-        
-        th {
-            background-color: #5b6abf;
-            color: white;
-            text-align: left;
-            padding: 15px;
-            font-size: 20px;
-            position: sticky;
-            top: 0;
-        }
-        
-        td {
-            padding: 15px;
-            border-bottom: 1px solid #f0f0f0;
-            font-size: 18px;
-            height: 40px;
-        }
-        
-        /* Alternating row colors */
-        tr:nth-child(odd) {
             background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
         }
-        
-        tr:nth-child(even) {
-            background-color: #f2f2f2;
+        thead {
+            background-color: #5c6bc0;
+            color: white;
         }
-        
-        /* Green background for rows with first checkbox checked */
-        tr.cooked {
-            background-color: #00ff9d !important;
+        th {
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 16px;
         }
-        
-        /* Blue background for rows with second checkbox checked */
-        tr.portioned {
-            background-color: #99ccff !important;
+        td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #ddd;
+            font-size: 16px;
         }
-        
-        /* Checkbox styling */
+        tr:last-child td {
+            border-bottom: none;
+        }
+        .dish-link {
+            color: #0066cc;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .dish-link:hover {
+            text-decoration: underline;
+        }
+        .bucket1-row {
+            background-color: #E8F5E9;
+        }
+        .bucket3-row {
+            background-color: #EDE7F6;
+        }
+        .checkbox-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+        }
         input[type="checkbox"] {
             width: 30px;
             height: 30px;
             cursor: pointer;
         }
-        
-        /* First column (dish name) styling */
-        td:first-child a {
-            color: #0066cc;
-            text-decoration: none;
-            font-weight: bold;
-            font-size: 18px;
-            cursor: pointer;
+        .header {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #5c6bc0;
+            color: white;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        
-        td:first-child a:hover {
-            text-decoration: underline;
+        .header h1 {
+            margin: 0;
         }
-        
-        /* Row number column */
-        .row-number {
-            width: 30px;
+        .hidden {
+            display: none;
+        }
+        .portions {
             text-align: center;
-            background-color: #e0e0e0;
-            color: #333;
+            font-size: 18px;
             font-weight: bold;
         }
-        
-        /* Header row */
-        .header-row {
-            height: 40px;
+        #refresh-button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
         }
-        
-        /* Portion column */
-        .portion-column {
-            text-align: right;
-            padding-right: 20px;
+        #refresh-button:hover {
+            background-color: #45a049;
         }
-        
-        /* Animation for row movement */
-        .animated-row {
-            transition: all 0.5s ease-in-out;
-        }
-        
-        /* Animation classes */
-        .slide-up {
-            animation: slideUp 0.5s ease-in-out;
-        }
-        
-        .slide-down {
-            animation: slideDown 0.5s ease-in-out;
-        }
-        
-        @keyframes slideUp {
-            from { transform: translateY(50px); opacity: 0.5; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-        
-        @keyframes slideDown {
-            from { transform: translateY(-50px); opacity: 0.5; }
-            to { transform: translateY(0); opacity: 1; }
+        #loading-indicator {
+            background-color: #ffeb3b;
+            color: #333;
+            padding: 10px;
+            text-align: center;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <table id="cooking-checklist">
+    <div class="container">
+        <div class="header">
+            <h1>Eatunique Kochplan</h1>
+            <button id="refresh-button" onclick="fetchDataFromGoogleSheets()">Aktualisieren</button>
+        </div>
+        <div id="loading-indicator" class="hidden">Daten werden geladen...</div>
+        
+        <table id="main-table">
             <thead>
-                <tr class="header-row">
-                    <th class="row-number">#</th>
-                    <th>Column 1</th>
-                    <th class="portion-column">Column 2</th>
-                    <th style="text-align: center;">Column 3</th>
-                    <th style="text-align: center;">Column 4</th>
+                <tr>
+                    <th>Gericht</th>
+                    <th>Portionen</th>
+                    <th colspan="2">Status</th>
                 </tr>
             </thead>
-            <tbody id="table-body">
-                <!-- Table rows will be generated dynamically -->
+            
+            <!-- Bucket 1: First checkbox checked (Cooked) -->
+            <tr class="bucket-header bucket1-header">
+                <td colspan="4">Gekocht (Erste Checkbox)</td>
+            </tr>
+            <tbody id="bucket1-body">
+                <!-- Rows will be added here -->
+            </tbody>
+            
+            <!-- Bucket 2: Main bucket (no checkboxes checked) -->
+            <tr class="bucket-header bucket2-header">
+                <td colspan="4">Zu kochen (Keine Checkbox)</td>
+            </tr>
+            <tbody id="bucket2-body">
+                <!-- Rows will be added here -->
+            </tbody>
+            
+            <!-- Bucket 3: Both checkboxes checked -->
+            <tr class="bucket-header bucket3-header">
+                <td colspan="4">Fertig (Beide Checkboxen)</td>
+            </tr>
+            <tbody id="bucket3-body">
+                <!-- Rows will be added here -->
             </tbody>
         </table>
     </div>
-
+    
     <script>
-        // Function to fetch and parse CSV data from Google Sheets
+        // Main data array to store all dish information
+        let tableData = [];
+        
+        // Object to store original positions in main bucket
+        const originalPositions = {};
+        
+        // Track positions in each bucket
+        const bucket1Order = [];
+        const bucket3Order = [];
+        
+        // Function to initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch data from Google Sheets
+            fetchDataFromGoogleSheets();
+        });
+        
+        /**
+         * Function to fetch and parse CSV data from Google Sheets
+         * Uses a CORS proxy to handle cross-origin requests
+         * Includes cache busting to ensure fresh data
+         */
         function fetchDataFromGoogleSheets() {
+            // Show loading indicator
+            document.getElementById('loading-indicator').classList.remove('hidden');
+            
             // Original CSV URL from Google Sheets
             const originalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSlkqs1NPRzcnn5pL0idFo0u58eDZSExJarqh2NqQexmhSMLYmyahISVleD04TULNebkNoi92XFDVvM/pub?gid=1548051930&single=true&output=csv';
             
@@ -160,6 +216,8 @@
                 })
                 .then(csvText => {
                     processCsvData(csvText);
+                    // Hide loading indicator on success
+                    document.getElementById('loading-indicator').classList.add('hidden');
                 })
                 .catch(error => {
                     console.error('Error fetching or parsing CSV:', error);
@@ -178,17 +236,42 @@
                         .then(csvText => {
                             console.log('Direct fetch succeeded!');
                             processCsvData(csvText);
+                            // Hide loading indicator on success
+                            document.getElementById('loading-indicator').classList.add('hidden');
                         })
                         .catch(directError => {
                             console.error('Direct fetch also failed:', directError);
                             console.log('Falling back to default empty data');
-                            // Initialize with default data if all fetches fail
-                            initTable();
+                            // Use sample data if all fetches fail
+                            useSampleData();
+                            // Hide loading indicator when using sample data
+                            document.getElementById('loading-indicator').classList.add('hidden');
                         });
                 });
         }
         
-        // Helper function to properly parse CSV rows (handles quoted values)
+        // Function to use sample data for testing
+        function useSampleData() {
+            const sampleData = [
+                ["Gemüserösti", 115, false, false, "https://docs.google.com/document/d/sample1"],
+                ["Bärlauchkalbshackbraten", 132, false, false, "https://docs.google.com/document/d/sample2"],
+                ["Gemüsesuppe", 42, false, false, "https://docs.google.com/document/d/sample4"],
+                ["Hackbällchen mit Tomatensoße", 20, false, false, "https://docs.google.com/document/d/sample5"],
+                ["Hackbraten an Jus", 83, false, false, "https://docs.google.com/document/d/sample6"]
+            ];
+            
+            // Clear the tableData array and add sample data
+            tableData.length = 0;
+            sampleData.forEach(row => tableData.push(row));
+            
+            // Initialize the table with sample data
+            initTable();
+        }
+        
+        /**
+         * Helper function to properly parse CSV rows (handles quoted values)
+         * This ensures proper handling of commas within quoted strings
+         */
         function parseCSVRow(row) {
             const result = [];
             let insideQuotes = false;
@@ -213,7 +296,11 @@
             return result;
         }
         
-        // Helper function to process CSV text
+        /**
+         * Process CSV text into structured data for the table
+         * Filters out dishes with zero portions
+         * Extracts Google Docs links from column G
+         */
         function processCsvData(csvText) {
             // Parse CSV to array format
             const rows = csvText.split('\n');
@@ -247,451 +334,200 @@
             console.log('Parsed data from CSV:', parsedData);
             
             // Replace the table data with the parsed data
-            console.log('Before replacement, tableData length:', tableData.length);
-            
-            // Clear the existing tableData array and replace with parsed data
             tableData.length = 0; // Clear the array
             parsedData.forEach(row => tableData.push(row)); // Add new data
-            
-            console.log('After replacement, tableData length:', tableData.length);
-            console.log('First few items:', tableData.slice(0, 3));
-            
-            // Reset position tracking since we have new data
-            resetPositionTracking();
             
             // Initialize the table with the new data
             initTable();
         }
         
-        // Initialize empty table data array that will be filled from the CSV
-        // Format: [name, portions, checked1, checked2, url]
-        const tableData = [];
-
-
-
-        // Store original positions separately from the JSON data
-        const originalPositions = {};
-        const rowIds = {};
-        
-        // Reset position tracking (used when loading new data)
-        function resetPositionTracking() {
-            // Clear existing position data
-            Object.keys(originalPositions).forEach(key => delete originalPositions[key]);
-            Object.keys(rowIds).forEach(key => delete rowIds[key]);
-            console.log('Position tracking reset');
-        }
-        
-        // Initialize or ensure original positions are tracked
-        function initializePositionTracking() {
-            // Generate a unique ID for each row based on its name (or other unique property)
-            tableData.forEach((rowData, index) => {
-                // Use dish name as a unique identifier
-                const dishName = rowData[0];
-                
-                // If this dish doesn't have an ID yet, create one
-                if (!rowIds[dishName]) {
-                    rowIds[dishName] = Date.now() + index; // Unique ID
-                }
-                
-                // If this dish doesn't have a position yet, store its current position
-                if (originalPositions[dishName] === undefined) {
-                    originalPositions[dishName] = index;
-                }
-            });
-            
-            console.log('Position tracking initialized:', originalPositions);
-        }
-        
-        // Initialize the table
+        // Initialize the table with the data
         function initTable() {
-            const tableBody = document.getElementById('table-body');
-            tableBody.innerHTML = '';
+            // Sort the data alphabetically by dish name
+            tableData.sort((a, b) => {
+                return a[0].localeCompare(b[0]);
+            });
             
-            // Make sure position tracking is initialized
-            initializePositionTracking();
+            // Store original positions
+            tableData.forEach((row, index) => {
+                const dishId = getDishId(row);
+                originalPositions[dishId] = index;
+            });
             
-            // Sort the table data to ensure consistent ordering
-            sortTableData();
+            // Refresh all buckets
+            refreshAllBuckets();
+        }
+        
+        // Refresh all buckets with current data
+        function refreshAllBuckets() {
+            // Clear all bucket bodies
+            document.getElementById('bucket1-body').innerHTML = '';
+            document.getElementById('bucket2-body').innerHTML = '';
+            document.getElementById('bucket3-body').innerHTML = '';
             
-            console.log('Current original positions:', originalPositions);
-
-            // Render the sorted table data
-            tableData.forEach((rowData, index) => {
-                // Create row
-                const row = createTableRow(rowData, index);
-                
-                // Add animation class
-                row.classList.add('animated-row');
-                
-                // Add slide animation for newly moved rows
-                if (rowData.isMoving) {
-                    if (rowData.moveDirection === 'up') {
-                        row.classList.add('slide-up');
-                    } else if (rowData.moveDirection === 'down') {
-                        row.classList.add('slide-down');
-                    }
-                    
-                    // Clear the moving flag after animation
-                    setTimeout(() => {
-                        rowData.isMoving = false;
-                        rowData.moveDirection = null;
-                    }, 500);
-                }
-                
-                tableBody.appendChild(row);
+            // Populate buckets based on checkbox states
+            tableData.forEach((row, index) => {
+                createTableRow(row, index);
             });
         }
-
-        // Create a table row
+        
+        // Create a unique ID for each dish
+        function getDishId(row) {
+            return `${row[0]}-${row[1]}`;
+        }
+        
+        // Create a table row for a dish and add it to the appropriate bucket
         function createTableRow(rowData, index) {
             const [dish, portions, cooked, portioned] = rowData;
             const row = document.createElement('tr');
+            const dishId = getDishId(rowData);
             
-            // Add row number cell
-            const rowNumberCell = document.createElement('td');
-            rowNumberCell.className = 'row-number';
-            rowNumberCell.textContent = index + 1;
-            row.appendChild(rowNumberCell);
+            // Set row ID for later reference
+            row.id = dishId;
             
-            // Add dish name cell with hyperlink styling
+            // Add dish name cell with hyperlink to Google Docs
             const dishCell = document.createElement('td');
             if (dish) {
                 const dishLink = document.createElement('a');
                 dishLink.href = rowData[4] || '#'; // Use URL from data or default to #
                 dishLink.textContent = dish;
-                dishLink.onclick = (e) => {
-                    e.preventDefault();
-                    alert('Clicked on: ' + dish);
-                };
+                dishLink.target = '_blank'; // Open in new tab
+                dishLink.className = 'dish-link';
                 dishCell.appendChild(dishLink);
             }
             row.appendChild(dishCell);
             
             // Add portions cell
             const portionsCell = document.createElement('td');
-            portionsCell.className = 'portion-column';
             portionsCell.textContent = portions;
+            portionsCell.className = 'portions';
             row.appendChild(portionsCell);
             
-            // Add cooked checkbox cell
-            const cookedCell = document.createElement('td');
-            cookedCell.style.textAlign = 'center';
-            const cookedCheckbox = document.createElement('input');
-            cookedCheckbox.type = 'checkbox';
-            cookedCheckbox.checked = cooked;
-            cookedCheckbox.addEventListener('change', function() {
-                handleCheckboxChange(index, 2, this.checked);
+            // Add checkbox column with both checkboxes side by side
+            const checkboxCell = document.createElement('td');
+            checkboxCell.className = 'checkbox-container';
+            checkboxCell.colSpan = 2;
+            
+            // First checkbox
+            const checkbox1 = document.createElement('input');
+            checkbox1.type = 'checkbox';
+            checkbox1.checked = cooked;
+            checkbox1.addEventListener('change', function() {
+                handleCheckbox1Change(dishId, this.checked);
             });
-            cookedCell.appendChild(cookedCheckbox);
-            row.appendChild(cookedCell);
             
-            // Add portioned checkbox cell
-            const portionedCell = document.createElement('td');
-            portionedCell.style.textAlign = 'center';
-            const portionedCheckbox = document.createElement('input');
-            portionedCheckbox.type = 'checkbox';
-            portionedCheckbox.checked = portioned;
-            
-            // Disable the portioned checkbox if cooked is not checked
-            if (!cooked) {
-                portionedCheckbox.disabled = true;
-                portionedCheckbox.style.opacity = '0.5';
-                portionedCheckbox.style.cursor = 'not-allowed';
-            }
-            
-            portionedCheckbox.addEventListener('change', function() {
-                handleCheckboxChange(index, 3, this.checked);
+            // Second checkbox
+            const checkbox2 = document.createElement('input');
+            checkbox2.type = 'checkbox';
+            checkbox2.checked = portioned;
+            checkbox2.disabled = !cooked; // Disable if first checkbox is not checked
+            checkbox2.addEventListener('change', function() {
+                handleCheckbox2Change(dishId, this.checked);
             });
-            portionedCell.appendChild(portionedCheckbox);
-            row.appendChild(portionedCell);
             
-            // Apply colors based on checkbox states
-            if (cooked && portioned) {
-                // Both checkboxes checked (finished dish) - green background
-                row.classList.add('cooked');
+            // Add both checkboxes to the same cell
+            checkboxCell.appendChild(checkbox1);
+            checkboxCell.appendChild(checkbox2);
+            row.appendChild(checkboxCell);
+            
+            // Add to appropriate bucket based on checkbox states
+            if (portioned) {
+                // Both checkboxes checked - Bucket 3
+                row.className = 'bucket3-row';
+                document.getElementById('bucket3-body').appendChild(row);
+                if (!bucket3Order.includes(dishId)) {
+                    bucket3Order.push(dishId); // Add to bucket 3 order if not already there
+                }
             } else if (cooked) {
-                // Only cooked checkbox checked - green background
-                row.classList.add('cooked');
-            } else if (portioned) {
-                // Only portioned checkbox checked - blue background
-                row.classList.add('portioned');
-            }
-            
-            return row;
-        }
-
-        // Handle checkbox change
-        function handleCheckboxChange(rowIndex, columnIndex, isChecked) {
-            // Get the dish name before updating the data (for logging)
-            const dishName = tableData[rowIndex][0];
-            console.log(`Checkbox change: ${dishName}, column ${columnIndex}, checked: ${isChecked}`);
-            
-            // Handle differently based on whether checking or unchecking
-            if (isChecked) {
-                // CHECKING: Update the data first
-                tableData[rowIndex][columnIndex] = isChecked;
-                
-                // If it's the "portioned" checkbox (column index 3), we don't auto-check the first one
-                // This allows portioned-only rows to go to the bottom bucket
-                if (columnIndex === 3) {
-                    console.log(`Portioned checkbox checked for ${dishName}`);
+                // Only first checkbox checked - Bucket 1
+                row.className = 'bucket1-row';
+                document.getElementById('bucket1-body').appendChild(row);
+                if (!bucket1Order.includes(dishId)) {
+                    bucket1Order.push(dishId); // Add to bucket 1 order if not already there
                 }
-                
-                // If the first checkbox (cooked) is being checked, enable the second checkbox (portioned)
-                if (columnIndex === 2) {
-                    // Find the row in the table and enable the portioned checkbox
-                    const tableBody = document.getElementById('table-body');
-                    const row = tableBody.children[rowIndex];
-                    if (row) {
-                        const portionedCheckbox = row.querySelector('td:nth-child(5) input');
-                        if (portionedCheckbox) {
-                            portionedCheckbox.disabled = false;
-                            portionedCheckbox.style.opacity = '1';
-                            portionedCheckbox.style.cursor = 'pointer';
-                        }
-                    }
-                }
-                
-                // Show checkbox state and color change immediately
-                initTable();
-                
-                // Add a delay before moving the row
-                setTimeout(() => {
-                    // If it's the "cooked" checkbox (column index 2) and not portioned
-                    if (columnIndex === 2 && !tableData[rowIndex][3]) {
-                        console.log(`Moving ${dishName} to top (cooked section)`);
-                        moveRowToTop(rowIndex);
-                    }
-                    
-                    // If it's the "portioned" checkbox (column index 3)
-                    if (columnIndex === 3) {
-                        // Check if the first checkbox is also checked
-                        if (tableData[rowIndex][2] === true) {
-                            // Both checkboxes are checked (finished dish), so it goes to the top section (green)
-                            console.log(`Moving ${dishName} to top (finished dish)`);
-                            moveRowToTop(rowIndex);
-                        } else {
-                            // Only the second checkbox is checked, so it goes to the bottom section
-                            console.log(`Moving ${dishName} to bottom (portioned-only section)`);
-                            // Make sure the first checkbox is explicitly unchecked
-                            tableData[rowIndex][2] = false;
-                            moveRowToBottom(rowIndex);
-                        }
-                    }
-                    
-                    // Refresh the table again to show the movement
-                    initTable();
-                }, 100); // Reduced delay for smoother experience
             } else {
-                // UNCHECKING: Handle special cases
-                
-                // If it's the "cooked" checkbox (column index 2)
-                if (columnIndex === 2) {
-                    // If the second checkbox is also checked, uncheck it too
-                    if (tableData[rowIndex][3] === true) {
-                        console.log(`Unchecking portioned checkbox for ${dishName} as well`);
-                        tableData[rowIndex][3] = false;
-                    }
-                    
-                    // Update the current checkbox state
-                    tableData[rowIndex][columnIndex] = isChecked;
-                    
-                    console.log(`Moving ${dishName} back to regular section`);
-                    // Move back to regular section
-                    moveRowToOriginalPosition(rowIndex, false); // false = no animation
-                }
-                
-                // If it's the "portioned" checkbox (column index 3)
-                if (columnIndex === 3) {
-                    // Update the checkbox state
-                    tableData[rowIndex][columnIndex] = isChecked;
-                    
-                    // Keep the first checkbox checked
-                    if (tableData[rowIndex][2] === true) {
-                        console.log(`Keeping ${dishName} in cooked section (first checkbox still checked)`);
-                        moveRowToTop(rowIndex);
-                    }
-                }
-                
-                // Refresh the table immediately
-                initTable();
+                // No checkboxes checked - Bucket 2 (Main)
+                document.getElementById('bucket2-body').appendChild(row);
             }
-        }
-
-        // Move a row to the top section (cooked rows)
-        function moveRowToTop(rowIndex) {
-            // Get the row data and dish name for logging
-            const rowData = tableData[rowIndex];
-            const dishName = rowData[0];
-            
-            console.log(`Moving ${dishName} to top section (cooked)`);
-            
-            // Add animation flags
-            rowData.isMoving = true;
-            rowData.moveDirection = 'up';
-            
-            // Mark the row as cooked (column index 2)
-            rowData[2] = true;
-            
-            // Apply the bucket sorting system to reorganize the table
-            sortTableData();
-            
-            console.log(`Moved ${dishName} to cooked section`);
-        }
-
-        // Move a row to the bottom section (portioned-only)
-        function moveRowToBottom(rowIndex) {
-            // Get the row data and dish name for logging
-            const rowData = tableData[rowIndex];
-            const dishName = rowData[0];
-            
-            console.log(`Moving ${dishName} to bottom section (portioned-only)`);
-            
-            // Add animation flags
-            rowData.isMoving = true;
-            rowData.moveDirection = 'down';
-            
-            // Ensure the row is portioned but not cooked
-            rowData[3] = true;  // Mark as portioned (column index 3)
-            rowData[2] = false; // Ensure not cooked (column index 2)
-            
-            // Debug the row state
-            console.log(`Row state after setting: cooked=${rowData[2]}, portioned=${rowData[3]}`);
-            
-            // Remove the row from its current position and reinsert it
-            // This ensures the row gets properly re-sorted
-            const rowCopy = [...rowData];
-            // Copy over the animation flags
-            rowCopy.isMoving = rowData.isMoving;
-            rowCopy.moveDirection = rowData.moveDirection;
-            
-            // Remove the row
-            tableData.splice(rowIndex, 1);
-            
-            // Add it back to the end (it will be sorted properly by sortTableData)
-            tableData.push(rowCopy);
-            
-            // Apply the bucket sorting system to reorganize the table
-            sortTableData();
-            
-            console.log(`Moved ${dishName} to portioned-only section`);
         }
         
-        // Sort the table data using a bucket-based approach
-        function sortTableData() {
-            // Create three separate buckets for different row types
-            const cookedBucket = [];
-            const regularBucket = [];
-            const portionedOnlyBucket = [];
+        // Handle change of the first checkbox
+        function handleCheckbox1Change(dishId, isChecked) {
+            // Find the dish in the data array
+            const dishIndex = tableData.findIndex(row => getDishId(row) === dishId);
+            if (dishIndex === -1) return;
             
-            // Distribute rows into appropriate buckets
-            for (let i = 0; i < tableData.length; i++) {
-                const row = tableData[i];
-                const dishName = row[0];
-                const isCooked = row[2] === true;
-                const isPortioned = row[3] === true;
+            // Update data
+            tableData[dishIndex][2] = isChecked;
+            
+            // If unchecking the first checkbox, also uncheck the second
+            if (!isChecked) {
+                tableData[dishIndex][3] = false;
                 
-                console.log(`Sorting ${dishName}: cooked=${isCooked}, portioned=${isPortioned}`);
-                
-                // Create a copy of the row to avoid reference issues
-                const rowCopy = [...row];
-                
-                // Preserve animation flags if present
-                if (row.isMoving !== undefined) rowCopy.isMoving = row.isMoving;
-                if (row.moveDirection !== undefined) rowCopy.moveDirection = row.moveDirection;
-                
-                if (isCooked && isPortioned) {
-                    // Rows with both checkboxes checked (finished dishes) go to the top bucket
-                    console.log(`${dishName} -> cooked bucket (finished dish)`);
-                    cookedBucket.push(rowCopy);
-                } else if (isCooked) {
-                    // Rows with only the first checkbox checked go to the top bucket
-                    console.log(`${dishName} -> cooked bucket`);
-                    cookedBucket.push(rowCopy);
-                } else if (isPortioned) {
-                    // Rows with only the second checkbox checked go to the bottom bucket
-                    console.log(`${dishName} -> portioned-only bucket`);
-                    portionedOnlyBucket.push(rowCopy);
-                } else {
-                    // Regular rows (neither cooked nor portioned) go to the middle bucket
-                    console.log(`${dishName} -> regular bucket`);
-                    regularBucket.push(rowCopy);
+                // Remove from bucket orders
+                const bucket1Index = bucket1Order.indexOf(dishId);
+                if (bucket1Index !== -1) {
+                    bucket1Order.splice(bucket1Index, 1);
                 }
-            }
-            
-            // Sort each bucket alphabetically by dish name
-            cookedBucket.sort((a, b) => a[0].localeCompare(b[0]));
-            regularBucket.sort((a, b) => a[0].localeCompare(b[0]));
-            portionedOnlyBucket.sort((a, b) => a[0].localeCompare(b[0]));
-            
-            // Clear the table data array
-            tableData.length = 0;
-            
-            // Combine the buckets in the desired order
-            cookedBucket.forEach(row => tableData.push(row));
-            regularBucket.forEach(row => tableData.push(row));
-            portionedOnlyBucket.forEach(row => tableData.push(row));
-            
-            // Log the bucket sizes for debugging
-            console.log(`Bucket sizes - Cooked: ${cookedBucket.length}, Regular: ${regularBucket.length}, Portioned-only: ${portionedOnlyBucket.length}`);
-        }
-
-        // Move a row back to its original position (regular section)
-        function moveRowToOriginalPosition(rowIndex, animate = true) {
-            // Get the row data
-            const rowData = tableData[rowIndex];
-            
-            // Get the dish name for logging
-            const dishName = rowData[0];
-            
-            console.log(`Moving ${dishName} back to regular section (unchecked)`);
-            
-            // Add animation flags only if animation is requested
-            if (animate) {
-                rowData.isMoving = true;
-                rowData.moveDirection = 'down';
+                
+                const bucket3Index = bucket3Order.indexOf(dishId);
+                if (bucket3Index !== -1) {
+                    bucket3Order.splice(bucket3Index, 1);
+                }
             } else {
-                // Make sure no animation happens
-                rowData.isMoving = false;
-                rowData.moveDirection = null;
-            }
-            
-            // Reset the row's state to unchecked for both checkboxes
-            rowData[2] = false; // Uncheck cooked
-            rowData[3] = false; // Uncheck portioned
-            
-            // Apply the bucket sorting system to reorganize the table
-            sortTableData();
-            
-            console.log(`Moved ${dishName} to regular section`);
-        }
-
-        // Remove duplicate dishes
-        function removeDuplicates() {
-            const uniqueDishes = new Set();
-            const indicesToRemove = [];
-            
-            tableData.forEach((rowData, index) => {
-                const dish = rowData[0];
-                if (dish && uniqueDishes.has(dish)) {
-                    indicesToRemove.push(index);
-                } else if (dish) {
-                    uniqueDishes.add(dish);
+                // Add to bucket 1 order if checking
+                if (!bucket1Order.includes(dishId)) {
+                    bucket1Order.push(dishId);
                 }
-            });
-            
-            // Remove duplicates from the end to avoid index shifting
-            for (let i = indicesToRemove.length - 1; i >= 0; i--) {
-                tableData.splice(indicesToRemove[i], 1);
             }
+            
+            // Refresh the table
+            refreshAllBuckets();
         }
-
-        // Initialize the table when the page loads
-        window.onload = function() {
-            // Fetch data from Google Sheets and initialize the table
-            fetchDataFromGoogleSheets();
-            // Note: initTable() is called inside fetchDataFromGoogleSheets() after data is loaded
-        };
+        
+        // Handle change of the second checkbox
+        function handleCheckbox2Change(dishId, isChecked) {
+            // Find the dish in the data array
+            const dishIndex = tableData.findIndex(row => getDishId(row) === dishId);
+            if (dishIndex === -1) return;
+            
+            // Update data - second checkbox can only be checked if first is checked
+            if (tableData[dishIndex][2]) {
+                tableData[dishIndex][3] = isChecked;
+                
+                if (isChecked) {
+                    // Move from bucket 1 to bucket 3
+                    const bucket1Index = bucket1Order.indexOf(dishId);
+                    if (bucket1Index !== -1) {
+                        bucket1Order.splice(bucket1Index, 1);
+                    }
+                    
+                    if (!bucket3Order.includes(dishId)) {
+                        bucket3Order.push(dishId);
+                    }
+                } else {
+                    // Move from bucket 3 to bucket 1
+                    const bucket3Index = bucket3Order.indexOf(dishId);
+                    if (bucket3Index !== -1) {
+                        bucket3Order.splice(bucket3Index, 1);
+                    }
+                    
+                    if (!bucket1Order.includes(dishId)) {
+                        bucket1Order.push(dishId);
+                    }
+                }
+            }
+            
+            // Refresh the table
+            refreshAllBuckets();
+        }
+        
+        // Reset position tracking
+        function resetPositionTracking() {
+            bucket1Order.length = 0;
+            bucket3Order.length = 0;
+            Object.keys(originalPositions).forEach(key => delete originalPositions[key]);
+        }
     </script>
 </body>
 </html>

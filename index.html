@@ -610,12 +610,18 @@
             bucket3Order.length = 0;
             Object.keys(originalPositions).forEach(key => delete originalPositions[key]);
         }
+
         // Google Docs Popup logic
         function openDocsPopup(url, dishName) {
             const popup = document.getElementById('docs-popup');
             const iframe = document.getElementById('docs-popup-iframe');
             const title = document.getElementById('docs-popup-title');
-            iframe.src = url || '#';
+            // Convert Google Drive share/view links to preview links for embedding
+            let previewUrl = url;
+            if (url && url.includes('/view')) {
+                previewUrl = url.replace('/view', '/preview');
+            }
+            iframe.src = previewUrl || '#';
             title.textContent = dishName || 'Rezeptvorschau';
             popup.style.display = 'flex';
         }
@@ -623,7 +629,6 @@
             document.getElementById('docs-popup').style.display = 'none';
             document.getElementById('docs-popup-iframe').src = '';
         };
-        // --- Settings popup logic ---
         document.addEventListener('DOMContentLoaded', function() {
             let currentCsvUrl = null;
             const defaultCsvUrl = typeof CSV_URL !== 'undefined' ? CSV_URL : '';

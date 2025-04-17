@@ -524,14 +524,20 @@
             const dishCell = document.createElement('td');
             if (dish) {
                 const dishLink = document.createElement('a');
-                dishLink.href = rowData[4] || '#';
+                dishLink.href = rowData[5] && rowData[5] !== '#' ? rowData[5] : '#';
                 dishLink.textContent = dish;
                 dishLink.className = 'dish-link';
                 dishLink.addEventListener('click', function(e) {
                     e.preventDefault();
-                    openDocsPopup(rowData[4] || '#', dish);
+                    if (rowData[5] && rowData[5] !== '#') {
+                        openDocsPopup(rowData[5], dish);
+                    } else {
+                        alert('Kein PDF-Link für dieses Gericht vorhanden.');
+                    }
                 });
                 dishCell.appendChild(dishLink);
+
+
             }
             row.appendChild(dishCell);
             
@@ -671,6 +677,10 @@
 
         // Google Docs Popup logic
         function openDocsPopup(url, dishName) {
+            if (!url || url === '#') {
+                alert('Kein PDF-Link für dieses Gericht vorhanden.');
+                return;
+            }
             const popup = document.getElementById('docs-popup');
             const iframe = document.getElementById('docs-popup-iframe');
             const title = document.getElementById('docs-popup-title');
@@ -679,7 +689,7 @@
             if (url && url.includes('/view')) {
                 previewUrl = url.replace('/view', '/preview');
             }
-            iframe.src = previewUrl || '#';
+            iframe.src = previewUrl;
             title.textContent = dishName || 'Rezeptvorschau';
             popup.style.display = 'flex';
         }

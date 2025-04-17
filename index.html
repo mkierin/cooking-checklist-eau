@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cooking Checklist</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
     <style>
         body, table, th, td {
             font-family: Roboto, Arial, sans-serif;
@@ -294,10 +295,21 @@
         const bucket1Order = [];
         const bucket3Order = [];
         
+        // Supabase setup
+        const SUPABASE_URL = 'https://thznclrupvmbggjolqrt.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoem5jbHJ1cHZtYmdnam9scXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4ODgzMTcsImV4cCI6MjA2MDQ2NDMxN30.bGwizbVzrexPSH6xfLYwFAU7UU5FGFJ4eQPSocyHUmA';
+        const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let dishMap = {};
         // Function to initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            // Fetch data from Google Sheets
             fetchDataFromGoogleSheets();
+            // Listen for real-time updates
+            supabaseClient
+              .channel('public:checklist')
+              .on('postgres_changes', { event: '*', schema: 'public', table: 'checklist' }, payload => {
+                renderChecklistFromSupabase();
+              })
+              .subscribe();
         });
         
         /**
@@ -357,6 +369,7 @@
                             console.error('Direct fetch also failed:', directError);
                             document.getElementById('loading-indicator').classList.add('hidden');
                             alert('Fehler: CSV konnte nicht geladen werden. Bitte prüfen Sie den Link und die Erreichbarkeit der Datei.');
+                        console.error('CSV fetch failed:', error, directError);
                         });
                 });
         }
@@ -396,11 +409,11 @@
          * Filters out dishes with zero portions
          * Extracts Google Docs links from column G
          */
-        function processCsvData(csvText) {
+        async function processCsvData(csvText) {
             // Parse CSV to array format
             const rows = csvText.split('\n');
             const parsedData = [];
-            
+            const dishesForSupabase = [];
             // Process each row (skip header if present)
             for (let i = 0; i < rows.length; i++) {
                 if (!rows[i].trim()) continue; // Skip empty rows
@@ -417,26 +430,53 @@
                 if (portions === 0) continue; // Skip rows with 0 portions
                 
                 // Create row in the format: [name, portions, checked1, checked2, url]
+                const dishId = values[5] ? values[5].trim() : '';
+                if (!dishId) continue; // skip if no unique dish ID
                 parsedData.push([
-                    values[0].trim(),                // Name
-                    portions,                        // Portions
-                    false,                          // First checkbox (always start unchecked)
-                    false,                          // Second checkbox (always start unchecked)
-                    values[6] || '#'                // PDF Hyperlink from column G
+                    dishId,                        // Unique dish ID from column F
+                    values[0].trim(),              // Name
+                    portions,                      // Portions
+                    false,                         // First checkbox (will be loaded from Supabase)
+                    false,                         // Second checkbox (will be loaded from Supabase)
+                    values[6] || '#'               // PDF Hyperlink from column G
                 ]);
+                dishesForSupabase.push({ dish_id: dishId, label: values[0].trim() });
             }
             
             console.log('Parsed data from CSV:', parsedData);
             
-            // Replace the table data with the parsed data
-            tableData.length = 0; // Clear the array
-            parsedData.forEach(row => tableData.push(row)); // Add new data
-            
-            // Initialize the table with the new data
-            initTable();
+            // Upsert all dishes to Supabase (adds new, keeps existing)
+            await supabaseClient.from('checklist').upsert(
+                dishesForSupabase,
+                { onConflict: ['dish_id'] }
+            );
+            // Copy parsedData into global tableData before rendering
+            tableData.length = 0;
+            parsedData.forEach(row => tableData.push(row));
+            // Now load state from Supabase
+            await renderChecklistFromSupabase();
         }
         
-        // Initialize the table with the data
+        // Load checklist state from Supabase and render
+        async function renderChecklistFromSupabase() {
+            const { data, error } = await supabaseClient.from('checklist').select('*');
+            if (error) return;
+            // Map from dish_id to supabase state
+            dishMap = {};
+            data.forEach(item => {
+                dishMap[item.dish_id] = item;
+            });
+            // Use the existing tableData but update checkbox states from Supabase
+            tableData.forEach(row => {
+                const dishId = getDishId(row);
+                if (dishMap[dishId]) {
+                    row[3] = !!dishMap[dishId].checked1; // first checkbox
+                    row[4] = !!dishMap[dishId].checked2; // second checkbox
+                }
+            });
+            initTable();
+        }
+// Initialize the table with the data
         function initTable() {
             // Sort the data alphabetically by dish name
             tableData.sort((a, b) => {
@@ -468,14 +508,14 @@
         
         // Create a unique ID for each dish
         function getDishId(row) {
-            return `${row[0]}-${row[1]}`;
+            return row[0]; // Use unique dish ID from column F
         }
         
         // Create a table row for a dish and add it to the appropriate bucket
         function createTableRow(rowData, index) {
-            const [dish, portions, cooked, portioned] = rowData;
+            const [dishId, dish, portions, cooked, portioned] = rowData;
             const row = document.createElement('tr');
-            const dishId = getDishId(rowData);
+            // dishId already available from destructuring above
             
             // Set row ID for later reference
             row.id = dishId;
@@ -510,8 +550,10 @@
             const checkbox1 = document.createElement('input');
             checkbox1.type = 'checkbox';
             checkbox1.checked = cooked;
-            checkbox1.addEventListener('change', function() {
+            checkbox1.addEventListener('change', async function() {
                 handleCheckbox1Change(dishId, this.checked);
+                // Update Supabase
+                await supabaseClient.from('checklist').update({ checked1: this.checked }).eq('dish_id', dishId);
             });
             
             // Second checkbox
@@ -519,8 +561,10 @@
             checkbox2.type = 'checkbox';
             checkbox2.checked = portioned;
             checkbox2.disabled = !cooked; // Disable if first checkbox is not checked
-            checkbox2.addEventListener('change', function() {
+            checkbox2.addEventListener('change', async function() {
                 handleCheckbox2Change(dishId, this.checked);
+                // Update Supabase
+                await supabaseClient.from('checklist').update({ checked2: this.checked }).eq('dish_id', dishId);
             });
             
             // Add both checkboxes to the same cell
@@ -555,12 +599,11 @@
             const dishIndex = tableData.findIndex(row => getDishId(row) === dishId);
             if (dishIndex === -1) return;
             
-            // Update data
-            tableData[dishIndex][2] = isChecked;
-            
+            // Update only checked1 (index 3)
+            tableData[dishIndex][3] = isChecked;
             // If unchecking the first checkbox, also uncheck the second
             if (!isChecked) {
-                tableData[dishIndex][3] = false;
+                tableData[dishIndex][4] = false;
                 
                 // Remove from bucket orders
                 const bucket1Index = bucket1Order.indexOf(dishId);
@@ -590,9 +633,8 @@
             if (dishIndex === -1) return;
             
             // Update data - second checkbox can only be checked if first is checked
-            if (tableData[dishIndex][2]) {
-                tableData[dishIndex][3] = isChecked;
-                
+            if (tableData[dishIndex][3]) {
+                tableData[dishIndex][4] = isChecked;
                 if (isChecked) {
                     // Move from bucket 1 to bucket 3
                     const bucket1Index = bucket1Order.indexOf(dishId);

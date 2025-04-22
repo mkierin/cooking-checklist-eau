@@ -230,12 +230,14 @@
         <iframe id="docs-popup-iframe" allowfullscreen></iframe>
     </div>
     <div id="settings-popup">
-        <div id="settings-popup-content">
+        <div id="settings-popup-content" style="position:relative;">
+            <button id="settings-popup-close" title="Schließen" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:24px;cursor:pointer;line-height:1;">×</button>
             <label for="csv-link-input">CSV Link (Google Sheets):</label>
             <input type="text" id="csv-link-input" />
             <div class="modal-actions">
                 <button id="settings-cancel">Abbrechen</button>
                 <button id="refresh-btn">Aktualisieren</button>
+                <button id="reset-checkboxes-btn" style="background:#e53935;color:white;">Alle Checkboxen zurücksetzen</button>
             </div>
         </div>
     </div>
@@ -500,8 +502,29 @@
             document.getElementById('bucket2-body').innerHTML = '';
             document.getElementById('bucket3-body').innerHTML = '';
             
-            // Populate buckets based on checkbox states
+            // First, separate rows for each bucket
+            const bucket2Rows = [];
+            const otherRows = [];
             tableData.forEach((row, index) => {
+                const cooked = row[3];
+                const portioned = row[4];
+                if (!cooked && !portioned) {
+                    bucket2Rows.push({row, index});
+                } else {
+                    otherRows.push({row, index});
+                }
+            });
+            // Sort bucket2Rows by dish name (A-Z)
+            bucket2Rows.sort((a, b) => {
+                // Dish name is at index 1
+                return (a.row[1] || '').localeCompare(b.row[1] || '');
+            });
+            // Render other buckets in original order
+            otherRows.forEach(({row, index}) => {
+                createTableRow(row, index);
+            });
+            // Render bucket 2 rows in sorted order
+            bucket2Rows.forEach(({row, index}) => {
                 createTableRow(row, index);
             });
         }
@@ -710,11 +733,41 @@
                 csvInput.value = currentCsvUrl || defaultCsvUrl;
                 settingsPopup.style.display = 'block';
                 setTimeout(() => csvInput.focus(), 150);
+                // Attach reset button handler every time popup is shown
+                const resetCheckboxesBtn = document.getElementById('reset-checkboxes-btn');
+                if (resetCheckboxesBtn && !resetCheckboxesBtn.dataset.handlerAttached) {
+                    resetCheckboxesBtn.onclick = async function() {
+                        if (!confirm('Alle Checkboxen wirklich zurücksetzen?')) return;
+                        // Update Supabase: set checked1 and checked2 to false for all dishes
+                        const { error } = await supabaseClient.from('checklist').update({ checked1: false, checked2: false }).neq('dish_id', null);
+                        if (error) {
+                            alert('Fehler beim Zurücksetzen in der Datenbank.');
+                            return;
+                        }
+                        // Update local state
+                        tableData.forEach(row => {
+                            row[3] = false; // checked1
+                            row[4] = false; // checked2
+                        });
+                        // Refresh UI
+                        refreshAllBuckets();
+                        alert('Alle Checkboxen wurden zurückgesetzt.');
+                    };
+                    resetCheckboxesBtn.dataset.handlerAttached = 'true';
+                }
             };
+
             // Close popup
             settingsCancel.onclick = function() {
                 settingsPopup.style.display = 'none';
             };
+            // Close popup with × button
+            const settingsPopupClose = document.getElementById('settings-popup-close');
+            if (settingsPopupClose) {
+                settingsPopupClose.onclick = function() {
+                    settingsPopup.style.display = 'none';
+                };
+            }
             // Save new CSV link
             settingsSave.onclick = function() {
                 const link = csvInput.value.trim();
@@ -727,6 +780,27 @@
                     settingsPopup.style.display = 'none';
                 }
             };
+            // Reset all checkboxes logic
+            const resetCheckboxesBtn = document.getElementById('reset-checkboxes-btn');
+            if (resetCheckboxesBtn) {
+                resetCheckboxesBtn.onclick = async function() {
+                    if (!confirm('Alle Checkboxen wirklich zurücksetzen?')) return;
+                    // Update Supabase: set checked1 and checked2 to false for all dishes
+                    const { error } = await supabaseClient.from('checklist').update({ checked1: false, checked2: false }).neq('dish_id', null);
+                    if (error) {
+                        alert('Fehler beim Zurücksetzen in der Datenbank.');
+                        return;
+                    }
+                    // Update local state
+                    tableData.forEach(row => {
+                        row[3] = false; // checked1
+                        row[4] = false; // checked2
+                    });
+                    // Refresh UI
+                    refreshAllBuckets();
+                    alert('Alle Checkboxen wurden zurückgesetzt.');
+                };
+            }
             // Patch: fetchAndRenderChecklist uses currentCsvUrl if set
             const origFetchAndRenderChecklist = fetchAndRenderChecklist;
             fetchAndRenderChecklist = function(urlOverride) {

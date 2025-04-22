@@ -185,14 +185,99 @@
     <style>
         /* Settings floating popup styles */
         #settings-popup {
-            display: none;
-            position: fixed;
-            z-index: 12000;
-            bottom: 32px;
-            right: 32px;
-            width: 320px;
-            background: none;
-        }
+    display: none;
+    position: fixed;
+    z-index: 12000;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 600px;
+    max-width: 90vw;
+    background: none;
+}
+#settings-popup-content {
+    font-size: 17px;
+    background: #fff;
+    padding: 32px 32px 20px 32px;
+    border-radius: 14px;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    min-width: 0;
+    max-width: 100%;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+#settings-popup-content label {
+    font-weight: 600;
+    margin-bottom: 2px;
+    display: block;
+}
+#settings-popup-content .settings-row {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 10px;
+}
+#settings-popup-content .settings-row span {
+    background: #f5f5f5;
+    border-radius: 4px;
+    padding: 6px 8px;
+    display: block;
+    word-break: break-all;
+}
+#settings-popup-content #edit-csv-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+}
+#settings-popup-content input {
+    padding: 7px 10px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    margin-bottom: 4px;
+    font-size: 15px;
+    width: 100%;
+    box-sizing: border-box;
+}
+#settings-popup-content button {
+    font-size: 15px !important;
+    padding: 7px 14px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+    background: #f7f7f7;
+    margin-right: 8px;
+    margin-top: 4px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+#settings-popup-content button:hover {
+    background: #ececec;
+}
+#settings-popup-content .modal-actions {
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 10px;
+}
+#settings-popup-content #settings-popup-close {
+    position: absolute;
+    top: 12px;
+    right: 18px;
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+    color: #888;
+}
+#settings-popup-content .settings-label {
+    font-weight: bold;
+    margin-bottom: 4px;
+    display: inline-block;
+}
         #settings-popup-content {
             background: #fff;
             padding: 16px 20px 12px 20px;
@@ -231,15 +316,29 @@
     </div>
     <div id="settings-popup">
         <div id="settings-popup-content" style="position:relative;">
-            <button id="settings-popup-close" title="Schließen" style="position:absolute;top:8px;right:8px;background:none;border:none;font-size:24px;cursor:pointer;line-height:1;">×</button>
-            <label for="csv-link-input">CSV Link (Google Sheets):</label>
-            <input type="text" id="csv-link-input" />
-            <div class="modal-actions">
-                <button id="settings-cancel">Abbrechen</button>
-                <button id="refresh-btn">Aktualisieren</button>
-                <button id="reset-checkboxes-btn" style="background:#e53935;color:white;">Alle Checkboxen zurücksetzen</button>
-            </div>
-        </div>
+  <button id="settings-popup-close" title="Schließen">×</button>
+  <div class="settings-row">
+    <label class="settings-label">Version:</label>
+    <span id="settings-version"></span>
+  </div>
+  <div class="settings-row">
+    <label class="settings-label">CSV URL:</label>
+    <span id="settings-csv-url"></span>
+  </div>
+  <button id="edit-csv-btn" style="align-self: flex-start;">Edit</button>
+  <div id="edit-csv-section" style="display:none;">
+    <label class="settings-label" for="edit-version-input">New Version</label>
+    <input id="edit-version-input" placeholder="Version"/>
+    <label class="settings-label" for="edit-csv-url-input">New CSV URL</label>
+    <input id="edit-csv-url-input" placeholder="CSV URL"/>
+    <button id="save-csv-btn">Save</button>
+  </div>
+  <div class="modal-actions">
+    <button id="settings-cancel">Abbrechen</button>
+    <button id="refresh-btn">Aktualisieren</button>
+    <button id="reset-checkboxes-btn" style="background:#e53935;color:white;">Alle Checkboxen zurücksetzen</button>
+  </div>
+</div>
     </div>
     <div class="container">
         <div class="header" style="display: flex; align-items: center; justify-content: space-between;">
@@ -302,9 +401,37 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRoem5jbHJ1cHZtYmdnam9scXJ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4ODgzMTcsImV4cCI6MjA2MDQ2NDMxN30.bGwizbVzrexPSH6xfLYwFAU7UU5FGFJ4eQPSocyHUmA';
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let dishMap = {};
-        // Function to initialize the application
+        // Supabase CSV fetch and settings logic
+async function fetchLatestCsvInfo() {
+  const { data, error } = await supabaseClient
+    .from('csv_links')
+    .select('version, csv_link')
+    .order('id', { ascending: false })
+    .limit(1)
+    .single();
+  if (error) {
+    console.error('Error fetching CSV info:', error);
+    return null;
+  }
+  return data;
+}
+
+let currentCsvUrl = null;
+let currentVersion = null;
+
+async function fetchAndUseLatestCsv() {
+  const info = await fetchLatestCsvInfo();
+  if (info) {
+    currentCsvUrl = info.csv_link;
+    currentVersion = info.version;
+    fetchDataFromGoogleSheets(currentCsvUrl);
+    // Optionally, update version display elsewhere if needed
+  }
+}
+
+// Function to initialize the application
         document.addEventListener('DOMContentLoaded', function() {
-            fetchDataFromGoogleSheets();
+            fetchAndUseLatestCsv();
             // Listen for real-time updates
             supabaseClient
               .channel('public:checklist')
@@ -319,62 +446,35 @@
          * Uses a CORS proxy to handle cross-origin requests
          * Includes cache busting to ensure fresh data
          */
-        function fetchDataFromGoogleSheets() {
-            // Show loading indicator
-            document.getElementById('loading-indicator').classList.remove('hidden');
-            
-            // Original CSV URL from Google Sheets
-            const originalCsvUrl = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQieBDdcVlfPjp1Ul3PzRdGRbVGnqHKinQxVYty6obFkjwfiTopjpATqWDQN09BcgIX3u6C45QJuQE2/pub?gid=1548051930&single=true&output=csv';
-            
-            // Use a CORS proxy to handle cross-origin requests
-            const corsProxyUrl = 'https://corsproxy.io/?';
-            
-            // Add cache busting parameter to always fetch fresh data
-            const csvUrl = corsProxyUrl + encodeURIComponent(originalCsvUrl + '&cachebust=' + Date.now());
-            
-            console.log('Fetching data from:', csvUrl);
-            
-            // Primary fetch attempt using CORS proxy
-            fetch(csvUrl)
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Network response was not ok: ' + response.statusText);
-                    }
-                    return response.text();
-                })
-                .then(csvText => {
-                    processCsvData(csvText);
-                    // Hide loading indicator on success
-                    document.getElementById('loading-indicator').classList.add('hidden');
-                })
-                .catch(error => {
-                    console.error('Error fetching or parsing CSV:', error);
-                    console.log('Trying direct fetch as fallback...');
-                    
-                    // Fallback: try direct fetch (works in some environments)
-                    fetch(originalCsvUrl, { mode: 'no-cors' })
-                        .then(response => {
-                            if (response.type === 'opaque') {
-                                // With no-cors, we can't actually read the content
-                                console.log('Direct fetch succeeded but content is opaque due to CORS');
-                                throw new Error('Cannot read content due to CORS restrictions');
-                            }
-                            return response.text();
-                        })
-                        .then(csvText => {
-                            console.log('Direct fetch succeeded!');
-                            processCsvData(csvText);
-                            // Hide loading indicator on success
-                            document.getElementById('loading-indicator').classList.add('hidden');
-                        })
-                        .catch(directError => {
-                            console.error('Direct fetch also failed:', directError);
-                            document.getElementById('loading-indicator').classList.add('hidden');
-                            alert('Fehler: CSV konnte nicht geladen werden. Bitte prüfen Sie den Link und die Erreichbarkeit der Datei.');
-                        console.error('CSV fetch failed:', error, directError);
-                        });
-                });
-        }
+        function fetchDataFromGoogleSheets(csvUrlFromSupabase) {
+    // Show loading indicator
+    document.getElementById('loading-indicator').classList.remove('hidden');
+    // Use the provided CSV URL from Supabase
+    const originalCsvUrl = csvUrlFromSupabase;
+    // Use a CORS proxy to handle cross-origin requests
+    const corsProxyUrl = 'https://corsproxy.io/?';
+    // Add cache busting parameter to always fetch fresh data
+    const csvUrl = corsProxyUrl + encodeURIComponent(originalCsvUrl + '&cachebust=' + Date.now());
+    console.log('Fetching data from:', csvUrl);
+    // Primary fetch attempt using CORS proxy
+    fetch(csvUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok: ' + response.statusText);
+            }
+            return response.text();
+        })
+        .then(csvText => {
+            processCsvData(csvText);
+            // Hide loading indicator on success
+            document.getElementById('loading-indicator').classList.add('hidden');
+        })
+        .catch(error => {
+            console.error('Error fetching or parsing CSV:', error);
+            document.getElementById('loading-indicator').classList.add('hidden');
+            alert('Fehler: CSV konnte nicht geladen werden. Bitte prüfen Sie den Link und die Erreichbarkeit der Datei.');
+        });
+}
         
 
         
@@ -721,93 +821,82 @@
             document.getElementById('docs-popup-iframe').src = '';
         };
         document.addEventListener('DOMContentLoaded', function() {
-            let currentCsvUrl = null;
-            const defaultCsvUrl = typeof CSV_URL !== 'undefined' ? CSV_URL : '';
-            const settingsBtn = document.getElementById('settings-btn');
-            const settingsPopup = document.getElementById('settings-popup');
-            const csvInput = document.getElementById('csv-link-input');
-            const settingsCancel = document.getElementById('settings-cancel');
-            const settingsSave = document.getElementById('settings-save');
-            // Open settings popup
-            settingsBtn.onclick = function() {
-                csvInput.value = currentCsvUrl || defaultCsvUrl;
-                settingsPopup.style.display = 'block';
-                setTimeout(() => csvInput.focus(), 150);
-                // Attach reset button handler every time popup is shown
-                const resetCheckboxesBtn = document.getElementById('reset-checkboxes-btn');
-                if (resetCheckboxesBtn && !resetCheckboxesBtn.dataset.handlerAttached) {
-                    resetCheckboxesBtn.onclick = async function() {
-                        if (!confirm('Alle Checkboxen wirklich zurücksetzen?')) return;
-                        // Update Supabase: set checked1 and checked2 to false for all dishes
-                        const { error } = await supabaseClient.from('checklist').update({ checked1: false, checked2: false }).neq('dish_id', null);
-                        if (error) {
-                            alert('Fehler beim Zurücksetzen in der Datenbank.');
-                            return;
-                        }
-                        // Update local state
-                        tableData.forEach(row => {
-                            row[3] = false; // checked1
-                            row[4] = false; // checked2
-                        });
-                        // Refresh UI
-                        refreshAllBuckets();
-                        alert('Alle Checkboxen wurden zurückgesetzt.');
-                    };
-                    resetCheckboxesBtn.dataset.handlerAttached = 'true';
-                }
-            };
+  // Settings modal logic
+  const settingsBtn = document.getElementById('settings-btn');
+  const settingsPopup = document.getElementById('settings-popup');
+  const settingsVersion = document.getElementById('settings-version');
+  const settingsCsvUrl = document.getElementById('settings-csv-url');
+  const editBtn = document.getElementById('edit-csv-btn');
+  const editSection = document.getElementById('edit-csv-section');
+  const editVersionInput = document.getElementById('edit-version-input');
+  const editCsvUrlInput = document.getElementById('edit-csv-url-input');
+  const saveCsvBtn = document.getElementById('save-csv-btn');
+  const settingsCancel = document.getElementById('settings-cancel');
+  const settingsPopupClose = document.getElementById('settings-popup-close');
 
-            // Close popup
-            settingsCancel.onclick = function() {
-                settingsPopup.style.display = 'none';
-            };
-            // Close popup with × button
-            const settingsPopupClose = document.getElementById('settings-popup-close');
-            if (settingsPopupClose) {
-                settingsPopupClose.onclick = function() {
-                    settingsPopup.style.display = 'none';
-                };
-            }
-            // Save new CSV link
-            settingsSave.onclick = function() {
-                const link = csvInput.value.trim();
-                if (link && link !== currentCsvUrl) {
-                    currentCsvUrl = link;
-                    settingsPopup.style.display = 'none';
-                    // Update CSV_URL globally and refresh
-                    fetchAndRenderChecklist(link);
-                } else {
-                    settingsPopup.style.display = 'none';
-                }
-            };
-            // Reset all checkboxes logic
-            const resetCheckboxesBtn = document.getElementById('reset-checkboxes-btn');
-            if (resetCheckboxesBtn) {
-                resetCheckboxesBtn.onclick = async function() {
-                    if (!confirm('Alle Checkboxen wirklich zurücksetzen?')) return;
-                    // Update Supabase: set checked1 and checked2 to false for all dishes
-                    const { error } = await supabaseClient.from('checklist').update({ checked1: false, checked2: false }).neq('dish_id', null);
-                    if (error) {
-                        alert('Fehler beim Zurücksetzen in der Datenbank.');
-                        return;
-                    }
-                    // Update local state
-                    tableData.forEach(row => {
-                        row[3] = false; // checked1
-                        row[4] = false; // checked2
-                    });
-                    // Refresh UI
-                    refreshAllBuckets();
-                    alert('Alle Checkboxen wurden zurückgesetzt.');
-                };
-            }
-            // Patch: fetchAndRenderChecklist uses currentCsvUrl if set
-            const origFetchAndRenderChecklist = fetchAndRenderChecklist;
-            fetchAndRenderChecklist = function(urlOverride) {
-                const url = urlOverride || currentCsvUrl || defaultCsvUrl;
-                origFetchAndRenderChecklist(url);
-            };
-        });
+  async function openSettingsModal() {
+    const info = await fetchLatestCsvInfo();
+    if (info) {
+      settingsVersion.textContent = info.version;
+      settingsCsvUrl.textContent = info.csv_link;
+    }
+    editSection.style.display = 'none';
+    settingsPopup.style.display = 'block';
+  }
+
+  settingsBtn.onclick = openSettingsModal;
+
+  editBtn.onclick = () => {
+    editSection.style.display = 'block';
+    editVersionInput.value = settingsVersion.textContent;
+    editCsvUrlInput.value = settingsCsvUrl.textContent;
+  };
+
+  saveCsvBtn.onclick = async () => {
+    const version = editVersionInput.value.trim();
+    const csvUrl = editCsvUrlInput.value.trim();
+    if (!version || !csvUrl) {
+      alert('Please enter both version and CSV URL.');
+      return;
+    }
+    // Always keep only one row: update if exists, otherwise insert
+    const { data: existingRows, error: fetchError } = await supabaseClient
+      .from('csv_links')
+      .select('id')
+      .limit(1);
+    if (fetchError) {
+      alert('Error checking for existing version: ' + fetchError.message);
+      return;
+    }
+    let error;
+    if (existingRows && existingRows.length > 0) {
+      // Update the existing row
+      const id = existingRows[0].id;
+      ({ error } = await supabaseClient.from('csv_links').update({ version, csv_link: csvUrl }).eq('id', id));
+    } else {
+      // Insert a new row
+      ({ error } = await supabaseClient.from('csv_links').insert([{ version, csv_link: csvUrl }]));
+    }
+    if (error) {
+      alert('Error saving: ' + error.message);
+      return;
+    }
+    editSection.style.display = 'none';
+    await fetchAndUseLatestCsv(); // Refresh CSV and version in app
+    openSettingsModal(); // Refresh shown info
+  };
+
+
+
+  settingsCancel.onclick = function() {
+    settingsPopup.style.display = 'none';
+  };
+  if (settingsPopupClose) {
+    settingsPopupClose.onclick = function() {
+      settingsPopup.style.display = 'none';
+    };
+  }
+});
     </script>
 </body>
 </html>

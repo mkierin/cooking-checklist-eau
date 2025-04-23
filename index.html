@@ -723,28 +723,30 @@ async function fetchAndUseLatestCsv() {
         }
         
         // Handle change of the first checkbox
-        function handleCheckbox1Change(dishId, isChecked) {
+        async function handleCheckbox1Change(dishId, isChecked) {
             // Find the dish in the data array
             const dishIndex = tableData.findIndex(row => getDishId(row) === dishId);
             if (dishIndex === -1) return;
             
             // Update only checked1 (index 3)
             tableData[dishIndex][3] = isChecked;
-            // If unchecking the first checkbox, also uncheck the second
             if (!isChecked) {
+                // If unchecking, also uncheck the second checkbox
                 tableData[dishIndex][4] = false;
-                
+                // Persist both to Supabase
+                await supabaseClient.from('checklist').update({ checked1: false, checked2: false }).eq('dish_id', dishId);
                 // Remove from bucket orders
                 const bucket1Index = bucket1Order.indexOf(dishId);
                 if (bucket1Index !== -1) {
                     bucket1Order.splice(bucket1Index, 1);
                 }
-                
                 const bucket3Index = bucket3Order.indexOf(dishId);
                 if (bucket3Index !== -1) {
                     bucket3Order.splice(bucket3Index, 1);
                 }
             } else {
+                // Persist checked1 to Supabase
+                await supabaseClient.from('checklist').update({ checked1: true }).eq('dish_id', dishId);
                 // Add to bucket 1 order if checking
                 if (!bucket1Order.includes(dishId)) {
                     bucket1Order.push(dishId);
@@ -842,6 +844,27 @@ async function fetchAndUseLatestCsv() {
     }
     editSection.style.display = 'none';
     settingsPopup.style.display = 'block';
+  }
+
+  // Reset all checkboxes button logic
+  const resetCheckboxesBtn = document.getElementById('reset-checkboxes-btn');
+  if (resetCheckboxesBtn) {
+    resetCheckboxesBtn.onclick = async function() {
+      if (!confirm('Alle Checkboxen wirklich zurücksetzen?')) return;
+      // Set all checkboxes to false in Supabase
+      const { error } = await supabaseClient.from('checklist').update({ checked1: false, checked2: false }).neq('dish_id', null);
+      if (error) {
+        alert('Fehler beim Zurücksetzen: ' + error.message);
+        return;
+      }
+      // Also update local state and UI
+      tableData.forEach(row => {
+        row[3] = false;
+        row[4] = false;
+      });
+      refreshAllBuckets();
+      alert('Alle Checkboxen wurden zurückgesetzt.');
+    };
   }
 
   settingsBtn.onclick = openSettingsModal;
